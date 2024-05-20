@@ -1,0 +1,6 @@
+*~
+*.pyc
+/.requests_cache.sqlite
+/__pycache__/
+/tracks/
+/venv/
