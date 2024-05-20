@@ -34,9 +34,11 @@ def get_mp3s_from_url(url, info=None):
             parsed_url = urlparse(url)
             artist = parsed_url.netloc.split(".")[0]
             album = parsed_url.path.split("/")[2]
+            info = track
+            info.update({"artist": artist, "album": album, "title": track["title"]})
             yield from get_mp3s_from_url(
                 track["url"],
-                {"artist": artist, "album": album, "title": track["title"]},
+                info,
             )
     if url_type == "track":
         track_html = requests.get(url).content
@@ -45,7 +47,8 @@ def get_mp3s_from_url(url, info=None):
             yield from get_mp3s_from_url(track["url"], info)
     if url_type == "stream":
         mp3_content = _get_mp3_from_url(url)
-        yield _get_mp3_path(mp3_content, info)
+        info["path"] = _get_mp3_path(mp3_content, info)
+        yield info
 
 
 def _get_albums_urls_from_url(url):
@@ -75,9 +78,12 @@ def _get_tracks_from_html(html):
         if script.has_attr("data-tralbum"):
             for track in json.loads(script["data-tralbum"])["trackinfo"]:
                 if track["id"]:
-                    tracks.append(
-                        {"url": track["file"]["mp3-128"], "title": track["title"]}
-                    )
+                    info = {
+                        "url": track["file"]["mp3-128"],
+                        "title": track["title"],
+                        "duration": track["duration"],
+                    }
+                    tracks.append(info)
     return tracks
 
 
