@@ -11,7 +11,7 @@ from slugify import slugify
 requests_cache.install_cache(".requests_cache")
 
 
-def get_mp3s_from_url(url, info=None):
+def get_mp3s_from_url(url, track=None):
     """
     url can be:
     https://band.bandcamp.com
@@ -34,21 +34,20 @@ def get_mp3s_from_url(url, info=None):
             parsed_url = urlparse(url)
             artist = parsed_url.netloc.split(".")[0]
             album = parsed_url.path.split("/")[2]
-            info = track
-            info.update({"artist": artist, "album": album, "title": track["title"]})
+            track.update({"artist": artist, "album": album, "title": track["title"]})
             yield from get_mp3s_from_url(
                 track["url"],
-                info,
+                track,
             )
     if url_type == "track":
         track_html = requests.get(url).content
         tracks = _get_tracks_from_html(track_html)
         for track in tracks_urls:
-            yield from get_mp3s_from_url(track["url"], info)
+            yield from get_mp3s_from_url(track["url"], track)
     if url_type == "stream":
         mp3_content = _get_mp3_from_url(url)
-        info["path"] = _get_mp3_path(mp3_content, info)
-        yield info
+        track["path"] = _get_mp3_path(mp3_content, track)
+        yield track
 
 
 def _get_albums_urls_from_url(url):
@@ -105,10 +104,10 @@ def _get_mp3_path(mp3_content, info):
 
 def _get_url_type(url):
     # return the first part of the url's path
-    # https://pulverised.bandcamp.com/: music
-    # https://pulverised.bandcamp.com/music: music
-    # https://pulverised.bandcamp.com/album/eleventh-formulae: album
-    # https://pulverised.bandcamp.com/track/mors-gloria-est: track
+    # https://band.bandcamp.com/: music
+    # https://band.bandcamp.com/music: music
+    # https://band.bandcamp.com/album/album-name
+    # https://band.bandcamp.com/track/track-name: track
     # https://t4.bcbits.../stream/...: stream
 
     result = urlparse(url).path.strip("/").split("/")[0]
