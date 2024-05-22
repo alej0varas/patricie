@@ -64,7 +64,6 @@ class Player:
         self.fade_out(0.25)
         self.my_music.stop(self.media_player)
         self.media_player = None
-        # self.playing = False
         self.play()
 
     @threaded
@@ -90,9 +89,19 @@ class Player:
             result = self.track["duration"]
         return result
 
-    def get_track(self):
+    def get_artist(self):
         if self.track:
-            return "{artist} - {album} - {title}".format(**self.track)
+            return "{artist}".format(**self.track)
+        return ""
+
+    def get_album(self):
+        if self.track:
+            return "{album}".format(**self.track)
+        return ""
+
+    def get_title(self):
+        if self.track:
+            return "{title}".format(**self.track)
         return ""
 
 
@@ -167,9 +176,29 @@ class MyView(arcade.View):
         self.clear()
         self.play_update_gui()
 
-        track_string = self.player.get_track()
+        _string = self.player.get_artist()
         arcade.draw_text(
-            track_string,
+            _string,
+            0,
+            100 + DEFAULT_LINE_HEIGHT * 2,
+            arcade.color.BLACK,
+            DEFAULT_FONT_SIZE * 2,
+            width=SCREEN_WIDTH,
+            align="center",
+        )
+        _string = self.player.get_album()
+        arcade.draw_text(
+            _string,
+            0,
+            100 + DEFAULT_LINE_HEIGHT,
+            arcade.color.BLACK,
+            DEFAULT_FONT_SIZE * 2,
+            width=SCREEN_WIDTH,
+            align="center",
+        )
+        _string = self.player.get_title()
+        arcade.draw_text(
+            _string,
             0,
             100,
             arcade.color.BLACK,
