@@ -1,1 +1,1 @@
-from . import bandcamplib, main
+from . import bandcamplib, player
