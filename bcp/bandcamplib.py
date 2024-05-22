@@ -1,5 +1,7 @@
 import json
 import os
+import time
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import requests
@@ -7,8 +9,12 @@ import requests_cache
 from bs4 import BeautifulSoup
 from slugify import slugify
 
+# suppres message alsoft messages because the bother me
+os.environ["ALSOFT_LOGLEVEL"] = "0"
 
 requests_cache.install_cache(".requests_cache")
+
+_prev_call_time = datetime(year=2000, month=1, day=1)
 
 
 def get_mp3s_from_url(url, track=None):
@@ -27,11 +33,12 @@ def get_mp3s_from_url(url, track=None):
         albums_urls = _get_albums_urls_from_url(url)
         for album_url in albums_urls:
             yield from get_mp3s_from_url(album_url)
-    if url_type == "album":
-        album_html = requests.get(url).content
-        tracks = _get_tracks_from_html(album_html)
+    if url_type in ["album", "track"]:
+        html = _fetch_url_content(url)
+        tracks = _get_tracks_from_html(html)
         for track in tracks:
             parsed_url = urlparse(url)
+            # FIX: track's url will have an album with the name of the track
             artist = parsed_url.netloc.split(".")[0]
             album = parsed_url.path.split("/")[2]
             track.update({"artist": artist, "album": album, "title": track["title"]})
@@ -39,20 +46,14 @@ def get_mp3s_from_url(url, track=None):
                 track["url"],
                 track,
             )
-    if url_type == "track":
-        track_html = requests.get(url).content
-        tracks = _get_tracks_from_html(track_html)
-        for track in tracks_urls:
-            yield from get_mp3s_from_url(track["url"], track)
     if url_type == "stream":
-        mp3_content = _get_mp3_from_url(url)
-        track["path"] = _get_mp3_path(mp3_content, track)
+        track["path"] = _get_mp3_path(track)
         yield track
 
 
 def _get_albums_urls_from_url(url):
     albums_urls = list()
-    music_html = requests.get(url).content
+    music_html = _fetch_url_content(url)
     albums_urls_path = _get_albums_urls_from_html(music_html)
 
     parsed_url = urlparse(url)
@@ -87,19 +88,45 @@ def _get_tracks_from_html(html):
 
 
 def _get_mp3_from_url(url):
-    return requests.get(url).content
+    with requests_cache.disabled():
+        return _fetch_url_content(url)
 
 
-def _get_mp3_path(mp3_content, info):
+def _fetch_url_content(url):
+    _throttle()
+    try:
+        return requests.get(url).content
+    except Exception:
+        raise StopIteration
+
+
+def _throttle():
+    global _prev_call_time
+    _throttel_time = 5
+    _time_diff = (datetime.now() - _prev_call_time).total_seconds()
+    if _time_diff < _throttel_time:
+        time.sleep(_throttel_time - _time_diff)
+    _prev_call_time = datetime.now()
+
+
+def _get_mp3_path(info):
     album_path = os.path.join("tracks", info["artist"], info["album"])
     title = slugify(info["title"])
+    mp3_path = os.path.join(album_path, title + ".mp3")
+    if os.path.exists(os.path.join(album_path, title + ".mp3")):
+        return mp3_path
     if not os.path.isdir(album_path):
         os.makedirs(album_path)
-    song_path = os.path.join(album_path, title + ".mp3")
-    if not os.path.isfile(song_path):
-        with open(song_path, "bw") as song_file:
+    mp3_content = _get_mp3_from_url(info["url"])
+    _write_mp3(mp3_content, mp3_path)
+    return mp3_path
+
+
+def _write_mp3(mp3_content, mp3_path):
+    if not os.path.isfile(mp3_path):
+        with open(mp3_path, "bw") as song_file:
             song_file.write(mp3_content)
-    return song_path
+    return mp3_path
 
 
 def _get_url_type(url):

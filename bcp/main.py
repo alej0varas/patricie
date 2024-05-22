@@ -8,7 +8,7 @@ import arcade.gui
 
 from . import bandcamplib
 
-SCREEN_WIDTH = 1200
+SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Bandcamp(url) Player"
 DEFAULT_LINE_HEIGHT = 45
@@ -46,8 +46,6 @@ class Player:
                 pass
             self.media_player.push_handlers(on_eos=self._handler_music_over)
             to_fade_out = self.track["duration"] - self.media_player.time - 1
-            arcade.unschedule(self.fade_out)
-            arcade.schedule_once(self.fade_out, to_fade_out)
             self.playing = True
         else:
             if self.playing:
@@ -76,7 +74,7 @@ class Player:
             time.sleep(duration / 100)
 
     def fade_out(self, duration=1.0):
-        for volume in range(100, 10, -1):  # to 0
+        for volume in range(100, 0, -1):
             self.media_player.volume = volume / 100
             time.sleep(duration / 100)
 
@@ -144,6 +142,7 @@ class MyView(arcade.View):
         self.handler_music_over()
 
     def on_click_quit(self, *_):
+        self.player.fade_out()
         arcade.exit()
 
     def handler_music_over(self):
