@@ -8,8 +8,15 @@ import arcade.gui
 
 from . import bandcamplib
 
-SCREEN_WIDTH = 600
-SCREEN_HEIGHT = 800
+import os
+
+FULLSCREEN = bool(int(os.environ.get("FULLSCREEN", True)))
+if FULLSCREEN:
+    SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
+else:
+    SCREEN_WIDTH = 1024
+    SCREEN_HEIGHT = 768
+
 SCREEN_TITLE = "Bandcamp(url) Player"
 DEFAULT_LINE_HEIGHT = 45
 DEFAULT_FONT_SIZE = 20
@@ -231,7 +238,9 @@ class MyView(arcade.View):
 
 
 def main(url):
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
+    window = arcade.Window(
+        SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True, fullscreen=FULLSCREEN
+    )
     window.show_view(MyView(url))
     window.run()
 
