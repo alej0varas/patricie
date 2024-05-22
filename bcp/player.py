@@ -10,9 +10,10 @@ from .log import get_loger
 
 _log = get_loger(__name__)
 
-SCREEN_TITLE = "Bandcamp(url) Player"
-DEFAULT_LINE_HEIGHT = 45
 DEFAULT_FONT_SIZE = 20
+DEFAULT_LINE_HEIGHT = 45
+SCREEN_TITLE = "Bandcamp (url) Player"
+VOLUME_DELTA = 0.1
 
 
 def threaded(func):
@@ -44,6 +45,7 @@ class Player:
                 return
             self.my_music = arcade.load_sound(self.track["path"], streaming=True)
             self.media_player = self.my_music.play()
+            self.media_player.volume = 0
             self.fade_in()
             try:
                 self.media_player.pop_handlers()
@@ -74,14 +76,37 @@ class Player:
 
     @threaded
     def fade_in(self, duration=1.0):
-        for volume in range(100):
-            self.media_player.volume = volume / 100
-            time.sleep(duration / 100)
+        if self.media_player:
+            for volume in range(100):
+                self.volume_up(0.01)
+                time.sleep(duration / 100)
+
+    @threaded
+    def volume_up(self, value=VOLUME_DELTA):
+        if self.media_player:
+            new_vol = self.media_player.volume + value
+            if new_vol > 1.0:
+                new_vol = 1
+            self.media_player.volume = new_vol
+
+    @threaded
+    def volume_down(self, value=VOLUME_DELTA):
+        if self.media_player:
+            new_vol = self.media_player.volume - value
+            if new_vol < 0.0:
+                new_vol = 0.0
+            self.media_player.volume = new_vol
 
     def fade_out(self, duration=1.0):
-        for volume in range(100, 0, -1):
-            self.media_player.volume = volume / 100
-            time.sleep(duration / 100)
+        if self.media_player:
+            for volume in range(100):
+                self.volume_down(0.01)
+                time.sleep(duration / 100)
+
+    def get_volume(self):
+        if self.media_player:
+            return self.media_player.volume
+        return 0.5
 
     def get_time(self):
         result = 0
@@ -148,6 +173,24 @@ class MyView(arcade.View):
         self.next_button.disabled = True
         self.v_box.add(self.next_button)
 
+        self.vol_down_button = arcade.gui.widgets.buttons.UITextureButton(
+            texture=textures._vol_down_normal_texture,
+            texture_hovered=textures._vol_down_hover_texture,
+            texture_pressed=textures._vol_down_press_texture,
+            texture_disabled=textures._vol_down_disable_texture,
+        )
+        self.vol_down_button.on_click = self.on_click_vol_down
+        self.v_box.add(self.vol_down_button)
+
+        self.vol_up_button = arcade.gui.widgets.buttons.UITextureButton(
+            texture=textures._vol_up_normal_texture,
+            texture_hovered=textures._vol_up_hover_texture,
+            texture_pressed=textures._vol_up_press_texture,
+            texture_disabled=textures._vol_up_disable_texture,
+        )
+        self.vol_up_button.on_click = self.on_click_vol_up
+        self.v_box.add(self.vol_up_button)
+
         quit_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._quit_normal_texture,
             texture_hovered=textures._quit_hover_texture,
@@ -179,11 +222,26 @@ class MyView(arcade.View):
         else:
             self.next_button.disabled = True
 
+        if self.player.get_volume() == 1.0:
+            self.vol_up_button.disabled = True
+        else:
+            self.vol_up_button.disabled = False
+        if self.player.get_volume() == 0.0:
+            self.vol_down_button.disabled = True
+        else:
+            self.vol_down_button.disabled = False
+
     def on_click_pause(self, *_):
         self.player.pause()
 
     def on_click_next(self, *_):
         self.handler_music_over()
+
+    def on_click_vol_down(self, *_):
+        self.player.volume_down()
+
+    def on_click_vol_up(self, *_):
+        self.player.volume_up()
 
     def on_click_quit(self, *_):
         self.player.fade_out()
