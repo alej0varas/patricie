@@ -1,14 +1,13 @@
-import threading
+import os
 import sys
+import threading
 import time
 from datetime import timedelta
 
 import arcade
 import arcade.gui
 
-from . import bandcamplib
-
-import os
+from . import bandcamplib, textures
 
 FULLSCREEN = bool(int(os.environ.get("FULLSCREEN", True)))
 if FULLSCREEN:
@@ -55,14 +54,16 @@ class Player:
             to_fade_out = self.track["duration"] - self.media_player.time - 1
             self.playing = True
         else:
-            if self.playing:
-                self.fade_out(0.25)
-                self.media_player.pause()
-                self.playing = False
-            else:
-                self.media_player.play()
-                self.fade_in(0.5)
-                self.playing = True
+            self.media_player.play()
+            self.fade_in(0.5)
+            self.playing = True
+
+    @threaded
+    def pause(self):
+        if self.playing:
+            self.fade_out(0.25)
+            self.media_player.pause()
+            self.playing = False
 
     @threaded
     def next(self):
@@ -117,20 +118,44 @@ class MyView(arcade.View):
         super().__init__()
 
         self.ui = arcade.gui.UIManager()
-        self.v_box = arcade.gui.widgets.layout.UIBoxLayout(space_between=20)
+        self.v_box = arcade.gui.widgets.layout.UIBoxLayout(
+            vertical=False, space_between=20
+        )
 
-        self.play_button = arcade.gui.widgets.buttons.UIFlatButton(
-            text="Play", width=200
+        self.play_button = arcade.gui.widgets.buttons.UITextureButton(
+            texture=textures._play_normal_texture,
+            texture_hovered=textures._play_hover_texture,
+            texture_pressed=textures._play_press_texture,
+            texture_disabled=textures._play_disable_texture,
         )
         self.play_button.on_click = self.on_click_play
         self.v_box.add(self.play_button)
-        self.next_button = arcade.gui.widgets.buttons.UIFlatButton(
-            text="Next", width=200
+
+        self.pause_button = arcade.gui.widgets.buttons.UITextureButton(
+            texture=textures._pause_normal_texture,
+            texture_hovered=textures._pause_hover_texture,
+            texture_pressed=textures._pause_press_texture,
+            texture_disabled=textures._pause_disable_texture,
+        )
+        self.pause_button.on_click = self.on_click_pause
+        self.v_box.add(self.pause_button)
+
+        self.next_button = arcade.gui.widgets.buttons.UITextureButton(
+            texture=textures._next_normal_texture,
+            texture_hovered=textures._next_hover_texture,
+            texture_pressed=textures._next_press_texture,
+            texture_disabled=textures._next_disable_texture,
         )
         self.next_button.on_click = self.on_click_next
         self.next_button.disabled = True
         self.v_box.add(self.next_button)
-        quit_button = arcade.gui.widgets.buttons.UIFlatButton(text="Quit", width=200)
+
+        quit_button = arcade.gui.widgets.buttons.UITextureButton(
+            texture=textures._quit_normal_texture,
+            texture_hovered=textures._quit_hover_texture,
+            texture_pressed=textures._quit_press_texture,
+            texture_disabled=textures._quit_disable_texture,
+        )
         quit_button.on_click = self.on_click_quit
         self.v_box.add(quit_button)
 
@@ -146,13 +171,18 @@ class MyView(arcade.View):
 
     def play_update_gui(self):
         if self.player.playing:
-            self.play_button.text = "Pause"
+            self.play_button.disabled = True
+            self.pause_button.disabled = False
         else:
-            self.play_button.text = "Play"
+            self.play_button.disabled = False
+            self.pause_button.disabled = True
         if self.player.media_player:
             self.next_button.disabled = False
         else:
             self.next_button.disabled = True
+
+    def on_click_pause(self, *_):
+        self.player.pause()
 
     def on_click_next(self, *_):
         self.handler_music_over()
