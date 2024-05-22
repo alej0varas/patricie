@@ -16,6 +16,13 @@ requests_cache.install_cache(".requests_cache")
 
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
+DEBUG = os.environ.get("DEBUG", False)
+
+
+def _log(*args):
+    if DEBUG:
+        print(*args)
+
 
 def get_mp3s_from_url(url, track=None):
     """
@@ -95,6 +102,7 @@ def _get_mp3_from_url(url):
 def _fetch_url_content(url):
     _throttle()
     try:
+        _log("REQUEST GET", url)
         return requests.get(url).content
     except Exception:
         raise StopIteration
@@ -102,10 +110,12 @@ def _fetch_url_content(url):
 
 def _throttle():
     global _prev_call_time
-    _throttel_time = 5
+    _throttle_time = 5
     _time_diff = (datetime.now() - _prev_call_time).total_seconds()
-    if _time_diff < _throttel_time:
-        time.sleep(_throttel_time - _time_diff)
+    if _time_diff < _throttle_time:
+        _throttle_for = _throttle_time - _time_diff
+        _log("throttle start", _throttle_for)
+        time.sleep(_throttle_for)
     _prev_call_time = datetime.now()
 
 
@@ -114,6 +124,7 @@ def _get_mp3_path(info):
     title = slugify(info["title"])
     mp3_path = os.path.join(album_path, title + ".mp3")
     if os.path.exists(os.path.join(album_path, title + ".mp3")):
+        _log("FILE EXISTS", mp3_path)
         return mp3_path
     if not os.path.isdir(album_path):
         os.makedirs(album_path)
