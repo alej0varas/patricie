@@ -7,6 +7,9 @@ import arcade
 import arcade.gui
 
 from . import bandcamplib, textures
+from .log import get_loger
+
+_log = get_loger(__name__)
 
 SCREEN_TITLE = "Bandcamp(url) Player"
 DEFAULT_LINE_HEIGHT = 45
@@ -37,6 +40,7 @@ class Player:
         if not self.media_player:
             self.track, downloaded = self.mp3s_iterator.__next__()
             if self.skip_downloaded and downloaded:
+                _log("Skip song:", self.track["title"])
                 self.play()
                 return
             self.my_music = arcade.load_sound(self.track["path"], streaming=True)
