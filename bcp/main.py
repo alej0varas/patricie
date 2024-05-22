@@ -1,4 +1,3 @@
-import os
 import sys
 import threading
 import time
@@ -8,13 +7,6 @@ import arcade
 import arcade.gui
 
 from . import bandcamplib, textures
-
-FULLSCREEN = bool(int(os.environ.get("FULLSCREEN", True)))
-if FULLSCREEN:
-    SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
-else:
-    SCREEN_WIDTH = 1024
-    SCREEN_HEIGHT = 768
 
 SCREEN_TITLE = "Bandcamp(url) Player"
 DEFAULT_LINE_HEIGHT = 45
@@ -30,9 +22,10 @@ def threaded(func):
 
 
 class Player:
-    def __init__(self, handler_music_over):
-        self.media_player = None
+    def __init__(self, handler_music_over, skip_downloaded=False):
         self._handler_music_over = handler_music_over
+        self.skip_downloaded = skip_downloaded
+        self.media_player = None
 
     def setup(self, url):
         self.track = None
@@ -42,7 +35,10 @@ class Player:
     @threaded
     def play(self):
         if not self.media_player:
-            self.track = self.mp3s_iterator.__next__()
+            self.track, downloaded = self.mp3s_iterator.__next__()
+            if self.skip_downloaded and downloaded:
+                self.play()
+                return
             self.my_music = arcade.load_sound(self.track["path"], streaming=True)
             self.media_player = self.my_music.play()
             self.fade_in()
@@ -114,9 +110,9 @@ class Player:
 
 
 class MyView(arcade.View):
-    def __init__(self, url):
+    def __init__(self, screen_width, screen_height, url, skip_downloaded=False):
         super().__init__()
-
+        self.screen_width, self.screen_height = screen_width, screen_height
         self.ui = arcade.gui.UIManager()
         self.v_box = arcade.gui.widgets.layout.UIBoxLayout(
             vertical=False, space_between=20
@@ -163,7 +159,7 @@ class MyView(arcade.View):
         ui_anchor_layout.add(child=self.v_box, anchor_x="center_x", anchor_y="center_y")
         self.ui.add(ui_anchor_layout)
 
-        self.player = Player(self.handler_music_over)
+        self.player = Player(self.handler_music_over, skip_downloaded)
         self.player.setup(url)
 
     def on_click_play(self, *_):
@@ -220,7 +216,7 @@ class MyView(arcade.View):
             100 + DEFAULT_LINE_HEIGHT * 2,
             arcade.color.BLACK,
             DEFAULT_FONT_SIZE * 2,
-            width=SCREEN_WIDTH,
+            width=self.screen_width,
             align="center",
         )
         _string = self.player.get_album()
@@ -230,7 +226,7 @@ class MyView(arcade.View):
             100 + DEFAULT_LINE_HEIGHT,
             arcade.color.BLACK,
             DEFAULT_FONT_SIZE * 2,
-            width=SCREEN_WIDTH,
+            width=self.screen_width,
             align="center",
         )
         _string = self.player.get_title()
@@ -240,7 +236,7 @@ class MyView(arcade.View):
             100,
             arcade.color.BLACK,
             DEFAULT_FONT_SIZE * 2,
-            width=SCREEN_WIDTH,
+            width=self.screen_width,
             align="center",
         )
 
@@ -261,20 +257,26 @@ class MyView(arcade.View):
             50,
             arcade.color.BLACK,
             DEFAULT_FONT_SIZE * 2,
-            width=SCREEN_WIDTH,
+            width=self.screen_width,
             align="center",
         )
         self.ui.draw()
 
 
-def main(url):
+def main(url, fullscreen=True, skip_downloaded=False):
+    if fullscreen:
+        screen_width, screen_height = arcade.get_display_size()
+    else:
+        screen_width = 640
+        screen_height = 480
     window = arcade.Window(
-        SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True, fullscreen=FULLSCREEN
+        screen_width, screen_height, SCREEN_TITLE, resizable=True, fullscreen=fullscreen
     )
-    window.show_view(MyView(url))
+    window.show_view(MyView(screen_width, screen_height, url, skip_downloaded))
     window.run()
 
 
 if __name__ == "__main__":
     url = sys.argv[1]
-    main(url)
+    # TODO: get from --skip_downloaded --fullscreen
+    main(url, fullscreen=True, skip_downloaded=True)

@@ -54,8 +54,8 @@ def get_mp3s_from_url(url, track=None):
                 track,
             )
     if url_type == "stream":
-        track["path"] = _get_mp3_path(track)
-        yield track
+        track["path"], cached = _get_mp3_path(track)
+        yield track, cached
 
 
 def _get_albums_urls_from_url(url):
@@ -124,13 +124,15 @@ def _get_mp3_path(info):
     title = slugify(info["title"])
     mp3_path = os.path.join(album_path, title + ".mp3")
     if os.path.exists(os.path.join(album_path, title + ".mp3")):
+        cached = True
         _log("FILE EXISTS", mp3_path)
-        return mp3_path
-    if not os.path.isdir(album_path):
-        os.makedirs(album_path)
-    mp3_content = _get_mp3_from_url(info["url"])
-    _write_mp3(mp3_content, mp3_path)
-    return mp3_path
+    else:
+        cached = False
+        if not os.path.isdir(album_path):
+            os.makedirs(album_path)
+        mp3_content = _get_mp3_from_url(info["url"])
+        _write_mp3(mp3_content, mp3_path)
+    return mp3_path, cached
 
 
 def _write_mp3(mp3_content, mp3_path):
