@@ -4,7 +4,6 @@ import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
-import requests
 import requests_cache
 from bs4 import BeautifulSoup
 from slugify import slugify
@@ -15,7 +14,10 @@ _log = get_loger(__name__)
 # suppres message alsoft messages because the bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
 
-requests_cache.install_cache(".requests_cache")
+session = requests_cache.CachedSession(
+    cache_name=".requests_cache",
+)
+
 
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
@@ -99,10 +101,14 @@ def _get_mp3_from_url(url):
 
 
 def _fetch_url_content(url):
-    _throttle()
+    if not session.cache.contains(url=url):
+        _log("Url not cached", url)
+        _throttle()
+    else:
+        _log("Url cached", url)
     try:
         _log("Request get:", url)
-        return requests.get(url).content
+        return session.get(url).content
     except Exception:
         raise StopIteration
 
