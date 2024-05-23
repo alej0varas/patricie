@@ -191,14 +191,14 @@ class MyView(arcade.View):
         self.vol_up_button.on_click = self.on_click_vol_up
         self.v_box.add(self.vol_up_button)
 
-        quit_button = arcade.gui.widgets.buttons.UITextureButton(
+        self.quit_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._quit_normal_texture,
             texture_hovered=textures._quit_hover_texture,
             texture_pressed=textures._quit_press_texture,
             texture_disabled=textures._quit_disable_texture,
         )
-        quit_button.on_click = self.on_click_quit
-        self.v_box.add(quit_button)
+        self.quit_button.on_click = self.on_click_quit
+        self.v_box.add(self.quit_button)
 
         ui_anchor_layout = arcade.gui.widgets.layout.UIAnchorLayout()
         ui_anchor_layout.add(child=self.v_box, anchor_x="center_x", anchor_y="center_y")
@@ -251,12 +251,20 @@ class MyView(arcade.View):
         self.player.next()
 
     def on_key_release(self, key, modifiers):
-        if key == arcade.key.SPACE:
-            self.on_click_play()
-        if key == arcade.key.N:
-            self.on_click_next()
-        if key == arcade.key.Q:
-            self.on_click_quit()
+        match key:
+            case arcade.key.SPACE:
+                if self.player.playing:
+                    self.pause_button.on_click()
+                else:
+                    self.play_button.on_click()
+            case arcade.key.N:
+                self.next_button.on_click()
+            case arcade.key.DOWN:
+                self.vol_down_button.on_click()
+            case arcade.key.UP:
+                self.vol_up_button.on_click()
+            case arcade.key.Q:
+                self.quit_button.on_click()
 
     def on_show_view(self):
         self.window.background_color = arcade.color.DARK_BLUE_GRAY
