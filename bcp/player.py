@@ -28,13 +28,14 @@ class Player:
     def __init__(self, handler_music_over, skip_downloaded=False):
         self._handler_music_over = handler_music_over
         self.skip_downloaded = skip_downloaded
-        self.media_player = None
-        self.do_stop = False
 
     def setup(self, url):
         self.track = None
         self.playing = False
         self.mp3s_iterator = bandcamplib.get_mp3s_from_url(url)
+        self.media_player = None
+        self.do_stop = False
+        self.user_volume = 100
 
     @threaded
     def play(self):
@@ -79,26 +80,33 @@ class Player:
 
     @threaded
     def fade_in(self, duration=1.0):
+        volume_delta = 0.01
         if self.media_player:
             for volume in range(100):
-                self.volume_up(0.01)
+                if self.media_player.volume + volume_delta > self.user_volume:
+                    break
+                self.volume_up(volume_delta, set_user_volume=False)
                 time.sleep(duration / 100)
 
     @threaded
-    def volume_up(self, value=VOLUME_DELTA):
+    def volume_up(self, value=VOLUME_DELTA, set_user_volume=True):
         if self.media_player:
             new_vol = self.media_player.volume + value
             if new_vol > 1.0:
                 new_vol = 1
             self.media_player.volume = new_vol
+            if set_user_volume:
+                self.user_volume = new_vol
 
     @threaded
-    def volume_down(self, value=VOLUME_DELTA):
+    def volume_down(self, value=VOLUME_DELTA, set_user_volume=True):
         if self.media_player:
             new_vol = self.media_player.volume - value
             if new_vol < 0.0:
                 new_vol = 0.0
             self.media_player.volume = new_vol
+            if set_user_volume:
+                self.user_volume = new_vol
 
     def stop(self):
         self.do_stop = True
@@ -109,7 +117,7 @@ class Player:
     def fade_out(self, duration=1.0):
         if self.media_player:
             for volume in range(100):
-                self.volume_down(0.01)
+                self.volume_down(0.01, set_user_volume=False)
                 time.sleep(duration / 100)
 
     def get_volume(self):
