@@ -29,6 +29,7 @@ class Player:
         self._handler_music_over = handler_music_over
         self.skip_downloaded = skip_downloaded
         self.media_player = None
+        self.do_stop = False
 
     def setup(self, url):
         self.track = None
@@ -37,6 +38,8 @@ class Player:
 
     @threaded
     def play(self):
+        if self.do_stop:
+            return
         if not self.media_player:
             self.track, downloaded = self.mp3s_iterator.__next__()
             if self.skip_downloaded and downloaded:
@@ -96,6 +99,12 @@ class Player:
             if new_vol < 0.0:
                 new_vol = 0.0
             self.media_player.volume = new_vol
+
+    def stop(self):
+        self.do_stop = True
+        if self.media_player:
+            self.fade_out()
+            self.my_music.stop(self.media_player)
 
     def fade_out(self, duration=1.0):
         if self.media_player:
@@ -244,7 +253,7 @@ class MyView(arcade.View):
         self.player.volume_up()
 
     def on_click_quit(self, *_):
-        self.player.fade_out()
+        self.player.stop()
         arcade.exit()
 
     def handler_music_over(self):
