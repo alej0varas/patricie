@@ -26,13 +26,7 @@ THROTTLE_TIME = 5
 
 
 def get_mp3s_from_url(url, track=None):
-    """
-    url can be:
-    https://band.bandcamp.com
-    https://band.bandcamp.com/music
-    https://band.bandcamp.com/album/album-name
-    https://band.bandcamp.com/track/track-name
-    """
+    # For supported urls see readme.
     url_type = _get_url_type(url)
     if not url_type:
         url_type = "music"
