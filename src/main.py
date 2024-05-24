@@ -1,7 +1,15 @@
-from bcp.player import main
+# for pyinstall as explained here:
+# https://api.arcade.academy/en/development/tutorials/bundling_with_pyinstaller/index.html#handling-data-files
+import os
+import sys
+
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    os.chdir(sys._MEIPASS)
+# end for pyinstall
 
 import argparse
 
+from bcp.player import main
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

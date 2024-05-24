@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import dotenv
 import requests_cache
 from bs4 import BeautifulSoup
+from platformdirs import user_data_dir
 from slugify import slugify
 
 from .log import get_loger
@@ -21,9 +22,12 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 os.environ["ALSOFT_LOGLEVEL"] = "0"
 
 _environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
-_cache_name = ".requests_cache" + _environment
+_cache_name = os.path.join(
+    user_data_dir("mulpyplayer"),
+    "requests_cache" + _environment,
+)
 _session = requests_cache.CachedSession(cache_name=_cache_name)
-
+_log(_session.cache.cache_name)
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
 
