@@ -1,5 +1,8 @@
 import os
 
+import dotenv
+
+dotenv.load_dotenv()
 
 DEBUG = os.environ.get("DEBUG", False)
 

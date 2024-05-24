@@ -20,14 +20,14 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
-
+_user_data_dir = user_data_dir("mulpyplayer")
+_log("User data directory:", _user_data_dir)
+_tracks_dir = os.path.join(_user_data_dir, "tracks")
+_log("Traks directory:", _tracks_dir)
 _environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
-_cache_name = os.path.join(
-    user_data_dir("mulpyplayer"),
-    "requests_cache" + _environment,
-)
+_cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment)
 _session = requests_cache.CachedSession(cache_name=_cache_name)
-_log(_session.cache.cache_name)
+_log("Cache path:", _session.cache.cache_name)
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
 
@@ -97,7 +97,7 @@ def _get_tracks_from_html(html):
 
 
 def _get_mp3_from_url(url):
-    with requests_cache.disabled():
+    with _session.disabled():
         return _fetch_url_content(url)
 
 
@@ -125,7 +125,7 @@ def _throttle():
 
 
 def _get_mp3_path(info):
-    album_path = os.path.join("tracks", info["artist"], info["album"])
+    album_path = os.path.join(_tracks_dir, info["artist"], info["album"])
     title = slugify(info["title"])
     mp3_path = os.path.join(album_path, title + ".mp3")
     if os.path.exists(os.path.join(album_path, title + ".mp3")):
@@ -149,10 +149,10 @@ def _write_mp3(mp3_content, mp3_path):
 
 def _get_url_type(url):
     # return the first part of the url's path
-    # https://band.bandcamp.com/: music
-    # https://band.bandcamp.com/music: music
-    # https://band.bandcamp.com/album/album-name
-    # https://band.bandcamp.com/track/track-name: track
-    # https://t4.bcbits.../stream/...: stream
+    # https://<bandname>.bandcamp.com/: music
+    # https://<bandname>.bandcamp.com/music: music
+    # https://<bandname>.bandcamp.com/album/<album-name>
+    # https://<bandname>.bandcamp.com/track/<track-name>: track
+    # https://.../stream/...: stream
     result = urlparse(url).path.strip("/").split("/")[0]
     return result
