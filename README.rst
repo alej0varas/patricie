@@ -35,4 +35,8 @@ Run (hypothetically)
 --------------------
 .. code-block:: shell
 
+   # create an environment
+   python -m venv <environtment name>
+   source <environment name>/bin/activate
+   #run code
    python -m bcp.main URL
