@@ -30,7 +30,6 @@ Service providers supported and supported URLs
    - https://<bandname>.bandcamp.com/album/<album-name>
    - https://<bandname>.bandcamp.com/track/<track-name>
 
-
 Run (hypothetically)
 --------------------
 .. code-block:: shell
@@ -40,3 +39,9 @@ Run (hypothetically)
    source <environment name>/bin/activate
    #run code
    python -m bcp.main URL
+
+Build
+-----
+..code-block: shell
+
+   pyinstaller src/main.py --add-data "assets:assets" --onefile

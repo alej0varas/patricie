@@ -1,8 +1,11 @@
 *~
 *.pyc
-/.requests_cache.sqlite
+/.requests_cache*
 /__pycache__/
 /tracks/
 /venv/
 /.flake8
 /index.html
+/build/
+/dist/
+/.env

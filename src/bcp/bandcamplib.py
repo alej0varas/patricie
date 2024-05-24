@@ -1,28 +1,30 @@
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urlparse
 
+import dotenv
 import requests_cache
 from bs4 import BeautifulSoup
 from slugify import slugify
+
 from .log import get_loger
 
+dotenv.load_dotenv()
 _log = get_loger(__name__)
 
-# suppres message alsoft messages because the bother me
+THROTTLE_TIME = 5
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
+
+# Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
 
-session = requests_cache.CachedSession(
-    cache_name=".requests_cache",
-)
-
+_environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
+_cache_name = ".requests_cache" + _environment
+_session = requests_cache.CachedSession(cache_name=_cache_name)
 
 _prev_call_time = datetime(year=2000, month=1, day=1)
-
-
-THROTTLE_TIME = 5
 
 
 def get_mp3s_from_url(url, track=None):
@@ -96,14 +98,14 @@ def _get_mp3_from_url(url):
 
 
 def _fetch_url_content(url):
-    if not session.cache.contains(url=url):
+    if not _session.cache.contains(url=url):
         _log("Url not cached", url)
         _throttle()
     else:
         _log("Url cached", url)
     try:
         _log("Request get:", url)
-        return session.get(url).content
+        return _session.get(url).content
     except Exception:
         raise StopIteration
 

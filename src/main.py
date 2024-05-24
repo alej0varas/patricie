@@ -1,4 +1,4 @@
-from .player import main
+from bcp.player import main
 
 import argparse
 
