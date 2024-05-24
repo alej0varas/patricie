@@ -76,7 +76,9 @@ def _get_albums_urls_from_html(html):
     ol_tag = soup.find("ol", id="music-grid")
     if ol_tag is None:
         return list()
-    hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
+    hrefs = list()
+    for i in json.loads(ol_tag["data-client-items"]):
+        hrefs.append(i["page_url"])
     return hrefs
 
 

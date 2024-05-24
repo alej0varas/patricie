@@ -11,7 +11,8 @@ class MainTests(unittest.TestCase):
     def test_get_track_from_artist_url(self):
         url = f"https://{constants.BC_BANDNAME}.bandcamp.com/"
         for mp3_info in bcp.bandcamplib.get_mp3s_from_url(url):
-            pass
+            print(mp3_info)
+            break
 
     def test_get_track_from_music_url(self):
         url = f"https://{constants.BC_BANDNAME}.bandcamp.com/music"
