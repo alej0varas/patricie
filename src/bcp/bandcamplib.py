@@ -97,7 +97,7 @@ def _get_tracks_from_html(html):
 
 
 def _get_mp3_from_url(url):
-    with _session.disabled():
+    with _session.cache_disabled():
         return _fetch_url_content(url)
 
 
