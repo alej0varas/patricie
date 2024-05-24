@@ -72,9 +72,10 @@ def _get_albums_urls_from_url(url):
 
 
 def _get_albums_urls_from_html(html):
-
     soup = BeautifulSoup(html, "html.parser")
     ol_tag = soup.find("ol", id="music-grid")
+    if ol_tag is None:
+        return list()
     hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
     return hrefs
 
@@ -153,6 +154,5 @@ def _get_url_type(url):
     # https://band.bandcamp.com/album/album-name
     # https://band.bandcamp.com/track/track-name: track
     # https://t4.bcbits.../stream/...: stream
-
     result = urlparse(url).path.strip("/").split("/")[0]
     return result

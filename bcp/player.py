@@ -43,7 +43,10 @@ class Player:
         if self.do_stop:
             return
         if not self.media_player:
-            self.track, downloaded = self.mp3s_iterator.__next__()
+            try:
+                self.track, downloaded = self.mp3s_iterator.__next__()
+            except Exception:
+                return
             if self.skip_downloaded and downloaded:
                 _log("Skip song:", self.track["title"])
                 self.play()
