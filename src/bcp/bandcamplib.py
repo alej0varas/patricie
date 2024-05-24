@@ -113,7 +113,7 @@ def _fetch_url_content(url):
         _log("Request get:", url)
         return _session.get(url).content
     except Exception:
-        raise StopIteration
+        raise StopIteration("Error getting url")
 
 
 def _throttle():

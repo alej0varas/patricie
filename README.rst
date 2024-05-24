@@ -45,3 +45,12 @@ Build
 ..code-block: shell
 
    pyinstaller src/main.py --add-data "assets:assets" --onefile
+
+TODO
+----
+- [ ] Handle artist url that redirects to album
+- [ ] Store last used volume
+- [ ] Store urls
+- [ ] Play from stored urls
+- [ ] Allow to set url on GUI
+- [ ] Store last played song and possition

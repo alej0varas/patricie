@@ -45,7 +45,7 @@ class Player:
         if not self.media_player:
             try:
                 self.track, downloaded = self.mp3s_iterator.__next__()
-            except Exception as e:
+            except StopIteration as e:
                 _log('Finished iterating tracks because reason')
                 _log(e)
                 return
