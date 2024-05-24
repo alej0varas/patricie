@@ -14,6 +14,7 @@ DEFAULT_FONT_SIZE = 20
 DEFAULT_LINE_HEIGHT = 45
 SCREEN_TITLE = "Bandcamp (url) Player"
 VOLUME_DELTA = 0.1
+VOLUME_DELTA_SMALL = 0.01
 
 
 def threaded(func):
@@ -82,31 +83,37 @@ class Player:
     def fade_in(self, duration=1.0):
         volume_delta = 0.01
         if self.media_player:
-            for volume in range(100):
-                if self.media_player.volume + volume_delta > self.user_volume:
-                    break
-                self.volume_up(volume_delta, set_user_volume=False)
+            new_vol = self.media_player.volume + volume_delta
+            for i in range(100):
+                if new_vol > 1:
+                    new_vol = 1
+                if new_vol > self.user_volume:
+                    new_vol = self.user_volume
+                self.volume_set(new_vol, set_user_volume=False)
+                new_vol += volume_delta
                 time.sleep(duration / 100)
 
     @threaded
-    def volume_up(self, value=VOLUME_DELTA, set_user_volume=True):
+    def volume_up(self, value=VOLUME_DELTA):
         if self.media_player:
             new_vol = self.media_player.volume + value
             if new_vol > 1.0:
                 new_vol = 1
-            self.media_player.volume = new_vol
-            if set_user_volume:
-                self.user_volume = new_vol
+            self.volume_set(new_vol)
 
     @threaded
-    def volume_down(self, value=VOLUME_DELTA, set_user_volume=True):
+    def volume_down(self, value=VOLUME_DELTA):
         if self.media_player:
             new_vol = self.media_player.volume - value
             if new_vol < 0.0:
                 new_vol = 0.0
-            self.media_player.volume = new_vol
+            self.volume_set(new_vol)
+
+    def volume_set(self, value, set_user_volume=True):
+        if self.media_player:
+            self.media_player.volume = value
             if set_user_volume:
-                self.user_volume = new_vol
+                self.user_volume = value
 
     def stop(self):
         self.do_stop = True
@@ -115,9 +122,14 @@ class Player:
             self.my_music.stop(self.media_player)
 
     def fade_out(self, duration=1.0):
+        volume_delta = 0.01
         if self.media_player:
+            new_vol = self.media_player.volume - volume_delta
             for volume in range(100):
-                self.volume_down(0.01, set_user_volume=False)
+                if new_vol < 0.0:
+                    new_vol = 0.0
+                self.volume_set(new_vol, set_user_volume=False)
+                new_vol -= volume_delta
                 time.sleep(duration / 100)
 
     def get_volume(self):
@@ -223,6 +235,7 @@ class MyView(arcade.View):
 
         self.player = Player(self.handler_music_over, skip_downloaded)
         self.player.setup(url)
+        self.keys_held = dict()
 
     def on_click_play(self, *_):
         self.player.play()
@@ -267,6 +280,9 @@ class MyView(arcade.View):
     def handler_music_over(self):
         self.player.next()
 
+    def on_key_press(self, key, modifiers):
+        self.keys_held[key] = True
+
     def on_key_release(self, key, modifiers):
         match key:
             case arcade.key.SPACE:
@@ -278,8 +294,11 @@ class MyView(arcade.View):
                 self.next_button.on_click()
             case arcade.key.DOWN:
                 self.vol_down_button.on_click()
+                self.keys_held[arcade.key.DOWN] = False
             case arcade.key.UP:
                 self.vol_up_button.on_click()
+                self.keys_held[arcade.key.UP] = False
+
             case arcade.key.Q:
                 self.quit_button.on_click()
 
@@ -289,6 +308,12 @@ class MyView(arcade.View):
 
     def on_hide_view(self):
         self.ui.disable()
+
+    def on_update(self, time_delta):
+        if self.keys_held.get(arcade.key.UP):
+            self.player.volume_up(VOLUME_DELTA_SMALL)
+        if self.keys_held.get(arcade.key.DOWN):
+            self.player.volume_down(VOLUME_DELTA_SMALL)
 
     def on_draw(self):
         self.clear()
