@@ -9,7 +9,8 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
 
 import argparse
 
-from bcp.player import main
+from bcp.gui import main
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
