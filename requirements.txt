@@ -11,6 +11,7 @@ platformdirs==4.2.2
 pycparser==2.22
 pyglet==2.1.dev2
 pymunk==6.6.0
+python-dotenv==1.0.1
 python-slugify==8.0.4
 pytiled-parser==2.2.3
 requests==2.31.0
