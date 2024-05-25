@@ -1,5 +1,5 @@
 import unittest
-
+from . import constants
 from .context import bcp
 
 
@@ -9,7 +9,7 @@ bcp.log.DEBUG = True
 class MainTests(unittest.TestCase):
     def test_main_with_artist(self):
         bcp.player.main(
-            "https://<bandname>.bandcamp.com/",
+            f"https://{constants.BC_BANDNAME}.bandcamp.com/",
             skip_downloaded=not True,
             fullscreen=False,
         )

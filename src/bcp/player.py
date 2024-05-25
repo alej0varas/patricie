@@ -25,14 +25,14 @@ class Player:
     def __init__(self, handler_music_over, skip_downloaded=False):
         self._handler_music_over = handler_music_over
         self.skip_downloaded = skip_downloaded
-
-    def setup(self, url):
-        self.track = None
         self.playing = False
-        self.mp3s_iterator = bandcamplib.get_mp3s_from_url(url)
         self.media_player = None
+        self.track = None
         self.do_stop = False
         self.user_volume = 100
+
+    def setup(self, url):
+        self.mp3s_iterator = bandcamplib.get_mp3s_from_url(url)
 
     @threaded
     def play(self):
@@ -42,7 +42,7 @@ class Player:
             try:
                 self.track, downloaded = self.mp3s_iterator.__next__()
             except StopIteration as e:
-                _log('Finished iterating tracks because reason')
+                _log("Finished iterating tracks because reason")
                 _log(e)
                 return
             if self.skip_downloaded and downloaded:

@@ -2,8 +2,11 @@ from datetime import timedelta
 
 import arcade
 
-from . import textures
+from . import textures, utils
+from .log import get_loger
 from .player import Player
+
+_log = get_loger(__name__)
 
 DEFAULT_FONT_SIZE = 20
 DEFAULT_LINE_HEIGHT = 45
@@ -13,10 +16,27 @@ VOLUME_DELTA_SMALL = 0.01
 
 
 class MyView(arcade.View):
-    def __init__(self, screen_width, screen_height, url, skip_downloaded=False):
+    def __init__(self, screen_width, screen_height, skip_downloaded=False):
         super().__init__()
         self.screen_width, self.screen_height = screen_width, screen_height
-        self.ui = arcade.gui.UIManager()
+
+        self.box = arcade.gui.widgets.layout.UIBoxLayout(space_between=20)
+        bg_tex = arcade.gui.nine_patch.NinePatchTexture(
+            left=5,
+            right=5,
+            top=5,
+            bottom=5,
+            texture=arcade.load_texture(
+                ":resources:gui_basic_assets/window/grey_panel.png"
+            ),
+        )
+        self.url_input_text = arcade.gui.UIInputText(
+            width=500, height=50, text="", texture=bg_tex
+        )
+        self.box.add(
+            self.url_input_text.with_padding(all=15).with_background(texture=bg_tex)
+        )
+
         self.v_box = arcade.gui.widgets.layout.UIBoxLayout(
             vertical=False, space_between=20
         )
@@ -76,18 +96,32 @@ class MyView(arcade.View):
         self.quit_button.on_click = self.on_click_quit
         self.v_box.add(self.quit_button)
 
-        ui_anchor_layout = arcade.gui.widgets.layout.UIAnchorLayout()
-        ui_anchor_layout.add(child=self.v_box, anchor_x="center_x", anchor_y="center_y")
-        self.ui.add(ui_anchor_layout)
+        self.ui = arcade.gui.UIManager()
+        self.grid = arcade.gui.UIGridLayout(
+            column_count=1, row_count=2, horizontal_spacing=20, vertical_spacing=20
+        )
+
+        self.grid.add(self.box, col_num=0, row_num=0)
+        self.grid.add(self.v_box, col_num=0, row_num=1)
+        self.anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        self.anchor.add(
+            anchor_x="center_x",
+            anchor_y="center_y",
+            child=self.grid,
+        )
 
         self.player = Player(self.handler_music_over, skip_downloaded)
-        self.player.setup(url)
         self.keys_held = dict()
+        self._current_url = ""
 
     def on_click_play(self, *_):
+        if self.current_url:
+            self.player.setup(self.current_url)
         self.player.play()
 
     def play_update_gui(self):
+        if not self.player:
+            return
         if self.player.playing:
             self.play_button.disabled = True
             self.pause_button.disabled = False
@@ -131,6 +165,15 @@ class MyView(arcade.View):
         self.keys_held[key] = True
 
     def on_key_release(self, key, modifiers):
+        if self.url_input_text._active:
+            match key:
+                case arcade.key.V:
+                    if modifiers & arcade.key.MOD_CTRL:
+                        t = utils.get_clipboad_content()
+                        _log("From clipboard", t)
+                        self.current_url = t
+            return arcade.pyglet.event.EVENT_HANDLED
+
         match key:
             case arcade.key.SPACE:
                 if self.player.playing:
@@ -145,7 +188,6 @@ class MyView(arcade.View):
             case arcade.key.UP:
                 self.vol_up_button.on_click()
                 self.keys_held[arcade.key.UP] = False
-
             case arcade.key.Q:
                 self.quit_button.on_click()
 
@@ -219,8 +261,19 @@ class MyView(arcade.View):
         )
         self.ui.draw()
 
+    @property
+    def current_url(self):
+        _log("current_url getter")
+        return self._current_url
 
-def main(url, fullscreen=True, skip_downloaded=False):
+    @current_url.setter
+    def current_url(self, new_value):
+        _log("current_url setter", new_value)
+        self._current_url = new_value
+        self.url_input_text.text = new_value
+
+
+def main(fullscreen=True, skip_downloaded=False):
     if fullscreen:
         screen_width, screen_height = arcade.get_display_size()
     else:
@@ -229,5 +282,5 @@ def main(url, fullscreen=True, skip_downloaded=False):
     window = arcade.Window(
         screen_width, screen_height, SCREEN_TITLE, resizable=True, fullscreen=fullscreen
     )
-    window.show_view(MyView(screen_width, screen_height, url, skip_downloaded))
+    window.show_view(MyView(screen_width, screen_height, skip_downloaded))
     window.run()

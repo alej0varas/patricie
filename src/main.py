@@ -14,7 +14,6 @@ from bcp.gui import main
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("url", help="Band, album or track url.")
     parser.add_argument(
         "-s",
         "--skip-downloaded",
@@ -30,4 +29,4 @@ if __name__ == "__main__":
         help="Use fullscreen. Default is true",
     )
     args = parser.parse_args()
-    main(args.url, fullscreen=args.fullscreen, skip_downloaded=args.skip_downloaded)
+    main(fullscreen=args.fullscreen, skip_downloaded=args.skip_downloaded)
