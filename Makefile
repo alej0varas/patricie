@@ -1,2 +1,3 @@
 release:
-	pyinstaller src/main.py --add-data "assets:assets" --onefile --clean
+	rm -rf ./dist ./build
+	pyinstaller src/main.py --name mulpyplayer --onefile --clean --add-data "assets:assets"

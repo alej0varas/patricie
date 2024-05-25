@@ -54,3 +54,4 @@ TODO
 - [ ] Play from stored urls
 - [ ] Allow to set url on GUI
 - [ ] Store last played song and possition
+- [ ] Normalize URLs http to https and add trailing '/'

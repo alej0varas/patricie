@@ -20,14 +20,14 @@ if __name__ == "__main__":
         "--skip-downloaded",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Skip songs that have already been downloaded.",
+        help="Skip songs that have already been downloaded. Default is true",
     )
     parser.add_argument(
         "-f",
         "--fullscreen",
         default=True,
         action=argparse.BooleanOptionalAction,
-        help="Use fullscreen.",
+        help="Use fullscreen. Default is true",
     )
     args = parser.parse_args()
     main(args.url, fullscreen=args.fullscreen, skip_downloaded=args.skip_downloaded)
