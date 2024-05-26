@@ -172,6 +172,8 @@ class MyView(arcade.View):
                         t = utils.get_clipboad_content()
                         _log("From clipboard", t)
                         self.current_url = t
+                case _:
+                    self.current_url = self.url_input_text.text
             return arcade.pyglet.event.EVENT_HANDLED
 
         match key:
