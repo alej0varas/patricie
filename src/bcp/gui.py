@@ -1,10 +1,12 @@
+import time
 from datetime import timedelta
 
 import arcade
 
-from . import textures, utils
+from . import textures
 from .log import get_loger
 from .player import Player
+from .utils import get_clipboad_content, threaded
 
 _log = get_loger(__name__)
 
@@ -175,14 +177,27 @@ class MyView(arcade.View):
         self._current_url = ""
         self.url_has_changed = False
         self.focus_set = dict()
+        self.current_track_info = None
 
     def on_click_play(self, *_):
         if self.url_has_changed:
             self.current_url = self.url_input_text.text
             self.url_has_changed = False
-        if self.current_url:
             self.player.setup(self.current_url)
+        if self.current_url:
             self.player.play()
+            self.update_track_info()
+
+    @threaded
+    def update_track_info(self):
+        while not self.player.playing:
+            time.sleep(0.1)
+        self.current_track_info = {
+            "title": self.player.get_title(),
+            "album": self.player.get_album(),
+            "artist": self.player.get_artist(),
+            "duration": self.player.get_duration(),
+        }
 
     def play_update_gui(self):
         if not self.player:
@@ -193,7 +208,7 @@ class MyView(arcade.View):
         else:
             self.play_button.disabled = False
             self.pause_button.disabled = True
-        if self.player.playing:
+        if hasattr(self.player, "media_player"):
             self.next_button.disabled = False
         else:
             self.next_button.disabled = True
@@ -225,6 +240,7 @@ class MyView(arcade.View):
 
     def handler_music_over(self):
         self.player.next()
+        self.update_track_info()
 
     def on_key_press(self, key, modifiers):
         self.keys_held[key] = True
@@ -236,7 +252,7 @@ class MyView(arcade.View):
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
-                        t = utils.get_clipboad_content()
+                        t = get_clipboad_content()
                         _log("From clipboard", t)
                         self.current_url = t
                 case arcade.key.TAB:
@@ -287,25 +303,25 @@ class MyView(arcade.View):
         self.clear()
         self.play_update_gui()
 
-        _string = self.player.get_title()
-        self.text_track_title.text = _string
-        _string = self.player.get_album()
-        self.text_track_album.text = _string
-        _string = self.player.get_artist()
-        self.text_track_artist.text = _string
+        if self.current_track_info:
+            self.text_track_title.text = self.current_track_info["title"]
+            self.text_track_album.text = self.current_track_info["album"]
+            self.text_track_artist.text = self.current_track_info["artist"]
 
-        _time = self.player.get_time()
-        milliseconds = int((_time % 1) * 100)
-        pos_string = "{}.{:02d}".format(
-            str(timedelta(seconds=int(_time)))[2:], milliseconds
-        )
-        _time = self.player.get_duration()
-        milliseconds = int((_time % 1) * 100)
-        dur_string = "{}.{:02d}".format(
-            str(timedelta(seconds=int(_time)))[2:], milliseconds
-        )
-        time_string = pos_string + " / " + dur_string
-        self.text_time.text = time_string
+            if self.player.playing:
+                _time = self.player.get_position()
+                milliseconds = int((_time % 1) * 100)
+                pos_string = "{}.{:02d}".format(
+                    str(timedelta(seconds=int(_time)))[2:], milliseconds
+                )
+                _time = self.current_track_info["duration"]
+                milliseconds = int((_time % 1) * 100)
+                dur_string = "{}.{:02d}".format(
+                    str(timedelta(seconds=int(_time)))[2:], milliseconds
+                )
+                time_string = pos_string + " / " + dur_string
+                self.text_time.text = time_string
+
         self.ui.draw()
 
     def _set_focus_on_widget(self, widget):

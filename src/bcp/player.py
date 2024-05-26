@@ -1,4 +1,3 @@
-import threading
 import time
 
 import arcade
@@ -6,16 +5,9 @@ import arcade.gui
 
 from . import bandcamplib
 from .log import get_loger
+from .utils import threaded
 
 _log = get_loger(__name__)
-
-
-def threaded(func):
-    def wrapper(*args, **kwargs):
-        t = threading.Thread(target=func, args=args, kwargs=kwargs)
-        t.start()
-
-    return wrapper
 
 
 class Player:
@@ -76,6 +68,7 @@ class Player:
     def next(self):
         if not self.media_player:
             return
+        self.playing = False
         self.fade_out(0.25)
         self.my_music.stop(self.media_player)
         self.media_player = None
@@ -135,13 +128,13 @@ class Player:
                 time.sleep(duration / 100)
 
     def get_volume(self):
-        if self.playing:
+        if self.playing and self.media_player:
             return self.media_player.volume
         return 0.5
 
-    def get_time(self):
+    def get_position(self):
         result = 0
-        if self.playing:
+        if self.playing and self.media_player:
             result = self.media_player.time
         return result
 
