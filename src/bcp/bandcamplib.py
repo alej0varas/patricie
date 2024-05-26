@@ -78,8 +78,13 @@ def _get_albums_urls_from_html(html):
     if ol_tag is None:
         return list()
     hrefs = list()
-    for i in json.loads(ol_tag["data-client-items"]):
-        hrefs.append(i["page_url"])
+    if ol_tag.get('data-client-items'):
+        _log('album URLs obtained from data attribute')
+        for i in json.loads(ol_tag["data-client-items"]):
+            hrefs.append(i["page_url"])
+    else:
+        _log('album URLs obtained from li href')
+        hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
     return hrefs
 
 
