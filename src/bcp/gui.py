@@ -124,7 +124,7 @@ class MyView(arcade.View):
 
         # track info
         self.text_track_title = arcade.gui.UILabel(
-            " ", width=500, text_color=arcade.color.BLACK, font_size=50, align="center"
+            " ", width=screen_width, text_color=arcade.color.BLACK, font_size=50, align="center"
         )
         self.text_track_album = arcade.gui.UILabel(
             " ", width=500, text_color=arcade.color.BLACK, font_size=30, align="center"
