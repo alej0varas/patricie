@@ -31,8 +31,14 @@ class MyView(arcade.View):
             ),
         )
         self.url_input_text = arcade.gui.UIInputText(
-            width=500, height=50, text="", texture=bg_tex
+            width=500, height=50, texture=bg_tex
         )
+        # may be not the same issue but cursor doesn't blink if text
+        # is not set. So we set something and then remove to make it
+        # empty again see.
+        # https://github.com/pythonarcade/arcade/issues/1059
+        self.url_input_text.text = " "
+        self.url_input_text.text = ""
         self.box.add(
             self.url_input_text.with_padding(all=15).with_background(texture=bg_tex)
         )
@@ -113,6 +119,7 @@ class MyView(arcade.View):
         self.player = Player(self.handler_music_over, skip_downloaded)
         self.keys_held = dict()
         self._current_url = ""
+        self.focus_set = dict()
 
     def on_click_play(self, *_):
         if self.current_url:
@@ -166,12 +173,17 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
+            # WHY[0]: remove self.v_box so focus can be set again on it
+            self.focus_set.pop(self.v_box, None)
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
                         t = utils.get_clipboad_content()
                         _log("From clipboard", t)
                         self.current_url = t
+                case arcade.key.TAB:
+                    # WHY[0]: just another widget not the text field
+                    self._set_focus_on_widget(self.v_box)
                 case _:
                     self.current_url = self.url_input_text.text
             return arcade.pyglet.event.EVENT_HANDLED
@@ -201,6 +213,7 @@ class MyView(arcade.View):
         self.ui.disable()
 
     def on_update(self, time_delta):
+        self._set_focus_on_widget(self.url_input_text)
         if self.keys_held.get(arcade.key.UP):
             self.player.volume_up(Player.VOLUME_DELTA_SMALL)
         if self.keys_held.get(arcade.key.DOWN):
@@ -262,6 +275,21 @@ class MyView(arcade.View):
             align="center",
         )
         self.ui.draw()
+
+    def _set_focus_on_widget(self, widget):
+        # WHY[0]: this method exist because we haven't found another
+        # way to set focus on a widget. we use it to set focus on
+        # url_input_text when app start. to leave field when pressing
+        # TAB we want to set focus on other widget, setting it to
+        # self.box works. when user click on url_input_text again we
+        # remove self.box so using tab will work again. it's necessary
+        # because this function is called all the time by on_update.
+        if not self.focus_set.get(widget):
+            self.focus_set[widget] = True
+            x, y = widget.rect.center
+            self.ui.dispatch_event(
+                "on_event", arcade.gui.UIMousePressEvent("", x, y, 0, 0)
+            )
 
     @property
     def current_url(self):
