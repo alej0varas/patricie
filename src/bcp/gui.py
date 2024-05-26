@@ -35,7 +35,8 @@ class MyView(arcade.View):
         )
         # may be not the same issue but cursor doesn't blink if text
         # is not set. So we set something and then remove to make it
-        # empty again see.
+        # empty again see. seting focus at start don't make cursor
+        # blink anyway :(
         # https://github.com/pythonarcade/arcade/issues/1059
         self.url_input_text.text = " "
         self.url_input_text.text = ""
@@ -119,12 +120,16 @@ class MyView(arcade.View):
         self.player = Player(self.handler_music_over, skip_downloaded)
         self.keys_held = dict()
         self._current_url = ""
+        self.url_has_changed = False
         self.focus_set = dict()
 
     def on_click_play(self, *_):
+        if self.url_has_changed:
+            self.current_url = self.url_input_text.text
+            self.url_has_changed = False
         if self.current_url:
             self.player.setup(self.current_url)
-        self.player.play()
+            self.player.play()
 
     def play_update_gui(self):
         if not self.player:
@@ -135,7 +140,7 @@ class MyView(arcade.View):
         else:
             self.play_button.disabled = False
             self.pause_button.disabled = True
-        if self.player.media_player:
+        if self.player.playing:
             self.next_button.disabled = False
         else:
             self.next_button.disabled = True
@@ -184,6 +189,12 @@ class MyView(arcade.View):
                 case arcade.key.TAB:
                     # WHY[0]: just another widget not the text field
                     self._set_focus_on_widget(self.v_box)
+                case arcade.key.ENTER:
+                    self.play_button.on_click()
+                    # don't know how to avoid \n to be added so we remove them
+                    self.url_input_text.text = self.url_input_text.text.replace(
+                        "\n", ""
+                    )
                 case _:
                     self.current_url = self.url_input_text.text
             return arcade.pyglet.event.EVENT_HANDLED
@@ -293,14 +304,13 @@ class MyView(arcade.View):
 
     @property
     def current_url(self):
-        _log("current_url getter")
         return self._current_url
 
     @current_url.setter
     def current_url(self, new_value):
-        _log("current_url setter", new_value)
         self._current_url = new_value
         self.url_input_text.text = new_value
+        self.url_has_changed = True
 
 
 def main(fullscreen=True, skip_downloaded=False):

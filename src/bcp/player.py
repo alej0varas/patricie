@@ -26,12 +26,13 @@ class Player:
         self._handler_music_over = handler_music_over
         self.skip_downloaded = skip_downloaded
         self.playing = False
+
+    def setup(self, url):
         self.media_player = None
         self.track = None
         self.do_stop = False
         self.user_volume = 100
-
-    def setup(self, url):
+        self.mp3s_iterator = None
         self.mp3s_iterator = bandcamplib.get_mp3s_from_url(url)
 
     @threaded
@@ -118,7 +119,7 @@ class Player:
 
     def stop(self):
         self.do_stop = True
-        if self.media_player:
+        if self.playing:
             self.fade_out()
             self.my_music.stop(self.media_player)
 
@@ -134,33 +135,33 @@ class Player:
                 time.sleep(duration / 100)
 
     def get_volume(self):
-        if self.media_player:
+        if self.playing:
             return self.media_player.volume
         return 0.5
 
     def get_time(self):
         result = 0
-        if self.media_player:
+        if self.playing:
             result = self.media_player.time
         return result
 
     def get_duration(self):
         result = 0
-        if self.track:
+        if self.playing:
             result = self.track["duration"]
         return result
 
     def get_artist(self):
-        if self.track:
+        if self.playing:
             return "{artist}".format(**self.track)
         return ""
 
     def get_album(self):
-        if self.track:
+        if self.playing:
             return "{album}".format(**self.track)
         return ""
 
     def get_title(self):
-        if self.track:
+        if self.playing:
             return "{title}".format(**self.track)
         return ""
