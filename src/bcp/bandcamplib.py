@@ -33,10 +33,11 @@ _prev_call_time = datetime(year=2000, month=1, day=1)
 
 def get_mp3s_from_url(url, track=None):
     # For supported urls see readme.
+    assert _validate_url(url)
     url_type = _get_url_type(url)
     if not url_type:
         url_type = "music"
-        url += url_type
+        url += "/" + url_type
     if url_type == "music":
         albums_urls = _get_albums_urls_from_url(url)
         for album_url in albums_urls:
@@ -158,3 +159,15 @@ def _get_url_type(url):
     # https://.../stream/...: stream
     result = urlparse(url).path.strip("/").split("/")[0]
     return result
+
+
+def _validate_url(url):
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc.split(".")
+    if len(domain) < 3:
+        raise ValueError("No band subdomain")
+    if (domain[1], domain[2]) not in (("bandcamp", "com"),('bcbits', 'com')):
+        raise ValueError("Not a bandcamp URL")
+    if parsed_url.scheme != "https":
+        raise ValueError("No https")
+    return url
