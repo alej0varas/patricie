@@ -1,16 +1,21 @@
-# for pyinstall as explained here:
-# https://api.arcade.academy/en/development/tutorials/bundling_with_pyinstaller/index.html#handling-data-files
+import argparse
 import os
 import sys
 
+# for pyinstall as explained here:
+# https://api.arcade.academy/en/development/tutorials/bundling_with_pyinstaller/index.html#handling-data-files
+_sha = ""
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     os.chdir(sys._MEIPASS)
+    # load constants created at build time
+    import _constants
+
+    _sha = _constants.COMMIT_SHA
+os.environ["COMMIT_SHA"] = _sha
 # end for pyinstall
 
-import argparse
-
-from bcp.gui import main
-
+# this import must be placed after os.chdir
+from bcp.gui import main  # noqa: E402
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
