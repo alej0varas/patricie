@@ -78,13 +78,14 @@ def _get_albums_urls_from_html(html):
     if ol_tag is None:
         return list()
     hrefs = list()
-    if ol_tag.get('data-client-items'):
-        _log('album URLs obtained from data attribute')
+    if ol_tag.get("data-client-items"):
+        _log("Album URLs obtained from data attribute")
         for i in json.loads(ol_tag["data-client-items"]):
             hrefs.append(i["page_url"])
     else:
-        _log('album URLs obtained from li href')
+        _log("Album URLs obtained from li href")
         hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
+    _log("Lodaded items count:", len(hrefs))
     return hrefs
 
 
@@ -171,7 +172,7 @@ def _validate_url(url):
     domain = parsed_url.netloc.split(".")
     if len(domain) < 3:
         raise ValueError("No band subdomain")
-    if (domain[1], domain[2]) not in (("bandcamp", "com"),('bcbits', 'com')):
+    if (domain[1], domain[2]) not in (("bandcamp", "com"), ("bcbits", "com")):
         raise ValueError("Not a bandcamp URL")
     if parsed_url.scheme != "https":
         raise ValueError("No https")

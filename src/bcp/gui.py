@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import timedelta
 
@@ -8,11 +9,13 @@ from .log import get_loger
 from .player import Player
 from .utils import get_clipboad_content, threaded
 
+__VERSION__ = "v0.1.3"
+_COMMIT_SHA = os.environ.get("COMMIT_SHA", "")
 _log = get_loger(__name__)
 
 DEFAULT_FONT_SIZE = 20
 DEFAULT_LINE_HEIGHT = 45
-SCREEN_TITLE = "Bandcamp (url) Player"
+SCREEN_TITLE = f"Patricie Player {__VERSION__}"
 VOLUME_DELTA = 0.1
 VOLUME_DELTA_SMALL = 0.01
 
@@ -25,7 +28,7 @@ class MyView(arcade.View):
         # gui top level elements
         self.ui = arcade.gui.UIManager()
         self.grid = arcade.gui.UIGridLayout(
-            column_count=1, row_count=2, horizontal_spacing=20, vertical_spacing=20
+            column_count=6, row_count=2, horizontal_spacing=20, vertical_spacing=20
         )
         self.anchor = self.ui.add(arcade.gui.UIAnchorLayout())
         self.anchor.add(
@@ -33,9 +36,15 @@ class MyView(arcade.View):
             anchor_y="center_y",
             child=self.grid,
         )
-
-        # URL input field
-        self.box_url = arcade.gui.widgets.layout.UIBoxLayout(space_between=20)
+        # URL label and input field
+        url_label = arcade.gui.UILabel(
+            "Band Link:",
+            width=80,
+            text_color=arcade.color.WHITE_SMOKE,
+            font_size=30,
+            align="left",
+        )
+        self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(
             left=5,
             right=5,
@@ -55,16 +64,13 @@ class MyView(arcade.View):
         # https://github.com/pythonarcade/arcade/issues/1059
         self.url_input_text.text = " "
         self.url_input_text.text = ""
-        self.box_url.add(
-            self.url_input_text.with_padding(all=15).with_background(texture=bg_tex)
+        self.grid.add(
+            self.url_input_text.with_padding(all=15).with_background(texture=bg_tex),
+            col_num=3,
+            row_num=0,
+            col_span=3,
         )
-        self.grid.add(self.box_url, col_num=0, row_num=0)
-
         # Buttons
-        self.box_buttons = arcade.gui.widgets.layout.UIBoxLayout(
-            vertical=False, space_between=20
-        )
-
         self.play_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._play_normal_texture,
             texture_hovered=textures._play_hover_texture,
@@ -72,7 +78,7 @@ class MyView(arcade.View):
             texture_disabled=textures._play_disable_texture,
         )
         self.play_button.on_click = self.on_click_play
-        self.box_buttons.add(self.play_button)
+        self.grid.add(self.play_button, col_num=0, row_num=1)
 
         self.pause_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._pause_normal_texture,
@@ -81,7 +87,7 @@ class MyView(arcade.View):
             texture_disabled=textures._pause_disable_texture,
         )
         self.pause_button.on_click = self.on_click_pause
-        self.box_buttons.add(self.pause_button)
+        self.grid.add(self.pause_button, col_num=1, row_num=1)
 
         self.next_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._next_normal_texture,
@@ -91,7 +97,7 @@ class MyView(arcade.View):
         )
         self.next_button.on_click = self.on_click_next
         self.next_button.disabled = True
-        self.box_buttons.add(self.next_button)
+        self.grid.add(self.next_button, col_num=2, row_num=1)
 
         self.vol_down_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._vol_down_normal_texture,
@@ -100,7 +106,7 @@ class MyView(arcade.View):
             texture_disabled=textures._vol_down_disable_texture,
         )
         self.vol_down_button.on_click = self.on_click_vol_down
-        self.box_buttons.add(self.vol_down_button)
+        self.grid.add(self.vol_down_button, col_num=3, row_num=1)
 
         self.vol_up_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._vol_up_normal_texture,
@@ -109,7 +115,7 @@ class MyView(arcade.View):
             texture_disabled=textures._vol_up_disable_texture,
         )
         self.vol_up_button.on_click = self.on_click_vol_up
-        self.box_buttons.add(self.vol_up_button)
+        self.grid.add(self.vol_up_button, col_num=4, row_num=1)
 
         self.quit_button = arcade.gui.widgets.buttons.UITextureButton(
             texture=textures._quit_normal_texture,
@@ -118,13 +124,15 @@ class MyView(arcade.View):
             texture_disabled=textures._quit_disable_texture,
         )
         self.quit_button.on_click = self.on_click_quit
-        self.box_buttons.add(self.quit_button)
-
-        self.grid.add(self.box_buttons, col_num=0, row_num=1)
+        self.grid.add(self.quit_button, col_num=5, row_num=1)
 
         # track info
         self.text_track_title = arcade.gui.UILabel(
-            " ", width=screen_width, text_color=arcade.color.BLACK, font_size=50, align="center"
+            " ",
+            width=screen_width,
+            text_color=arcade.color.BLACK,
+            font_size=50,
+            align="center",
         )
         self.text_track_album = arcade.gui.UILabel(
             " ", width=500, text_color=arcade.color.BLACK, font_size=30, align="center"
@@ -163,7 +171,9 @@ class MyView(arcade.View):
 
         # version text
         self.anchor_version = self.ui.add(arcade.gui.UIAnchorLayout())
-        self.text_version = arcade.gui.UILabel("Version: 0.1")
+        self.text_version = arcade.gui.UILabel(
+            f"Version: {__VERSION__} - Build: {_COMMIT_SHA}"
+        )
         self.anchor_version.add(
             anchor_x="left",
             anchor_y="bottom",
@@ -247,8 +257,8 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            # WHY[0]: remove self.box_buttons so focus can be set again on it
-            self.focus_set.pop(self.box_buttons, None)
+            # WHY[0]: remove self.grid so focus can be set again on it
+            self.focus_set.pop(self.grid, None)
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
@@ -257,7 +267,7 @@ class MyView(arcade.View):
                         self.current_url = t
                 case arcade.key.TAB:
                     # WHY[0]: just another widget not the text field
-                    self._set_focus_on_widget(self.box_buttons)
+                    self._set_focus_on_widget(self.grid)
                 case arcade.key.ENTER:
                     self.play_button.on_click()
                     # don't know how to avoid \n to be added so we remove them
@@ -329,9 +339,10 @@ class MyView(arcade.View):
         # way to set focus on a widget. we use it to set focus on
         # url_input_text when app start. to leave field when pressing
         # TAB we want to set focus on other widget, setting it to
-        # self.box works. when user click on url_input_text again we
-        # remove self.box so using tab will work again. it's necessary
-        # because this function is called all the time by on_update.
+        # self.grid works. when user click on url_input_text again we
+        # remove self.grid so using tab will work again. it's
+        # necessary because this function is called all the time by
+        # on_update.
         if not self.focus_set.get(widget):
             self.focus_set[widget] = True
             x, y = widget.rect.center
