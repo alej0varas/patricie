@@ -34,33 +34,21 @@ class MainTests(unittest.TestCase):
         bcp.bandcamplib._get_albums_urls_from_url(url)
 
     def test_validate_url(self):
-        url = 'https://bandcamp.com'
+        url = "https://bandcamp.com"
         with self.assertRaises(ValueError) as cm:
             bcp.bandcamplib._validate_url(url)
-        self.assertEqual(
-            'No band subdomain',
-            str(cm.exception)
-        )
+        self.assertEqual("No band subdomain", str(cm.exception))
 
-        url = 'https://bandname.someothercamp.com'
+        url = "https://bandname.someothercamp.com"
         with self.assertRaises(ValueError) as cm:
             bcp.bandcamplib._validate_url(url)
-        self.assertEqual(
-            'Not a bandcamp URL',
-            str(cm.exception)
-        )
-        url = 'http://bandname.bandcamp.com'
+        self.assertEqual("Not a bandcamp URL", str(cm.exception))
+        url = "http://bandname.bandcamp.com"
         with self.assertRaises(ValueError) as cm:
             bcp.bandcamplib._validate_url(url)
-        self.assertEqual(
-            'No https',
-            str(cm.exception)
-        )
+        self.assertEqual("No https", str(cm.exception))
 
-        url = 'https://t4.bc-not-bits.com/stream/'
+        url = "https://t4.bc-not-bits.com/stream/"
         with self.assertRaises(ValueError) as cm:
             bcp.bandcamplib._validate_url(url)
-        self.assertEqual(
-            'Not a bandcamp URL',
-            str(cm.exception)
-        )
+        self.assertEqual("Not a bandcamp URL", str(cm.exception))

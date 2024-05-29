@@ -1,1 +1,1 @@
-from . import bandcamplib, player, gui
+from . import bandcamplib, player, gui  # noqa: F401
