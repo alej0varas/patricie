@@ -16,9 +16,6 @@ _log = get_loger(__name__)
 DEFAULT_FONT_SIZE = 20
 DEFAULT_LINE_HEIGHT = 45
 SCREEN_TITLE = f"Patricie Player {__VERSION__}"
-VOLUME_DELTA = 0.1
-VOLUME_DELTA_SMALL = 0.01
-
 
 class MyView(arcade.View):
     def __init__(self, screen_width, screen_height, skip_downloaded=False):

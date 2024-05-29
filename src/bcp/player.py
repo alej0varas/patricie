@@ -76,16 +76,15 @@ class Player:
 
     @threaded
     def fade_in(self, duration=1.0):
-        volume_delta = 0.01
         if self.media_player:
-            new_vol = self.media_player.volume + volume_delta
+            new_vol = self.media_player.volume + Player.VOLUME_DELTA_SMALL
             for i in range(100):
                 if new_vol > 1:
                     new_vol = 1
                 if new_vol > self.user_volume:
                     new_vol = self.user_volume
                 self.volume_set(new_vol, set_user_volume=False)
-                new_vol += volume_delta
+                new_vol += Player.VOLUME_DELTA_SMALL
                 time.sleep(duration / 100)
 
     @threaded
@@ -117,14 +116,13 @@ class Player:
             self.my_music.stop(self.media_player)
 
     def fade_out(self, duration=1.0):
-        volume_delta = 0.01
         if self.media_player:
-            new_vol = self.media_player.volume - volume_delta
+            new_vol = self.media_player.volume - Player.VOLUME_DELTA_SMALL
             for volume in range(100):
                 if new_vol < 0.0:
                     new_vol = 0.0
                 self.volume_set(new_vol, set_user_volume=False)
-                new_vol -= volume_delta
+                new_vol -= Player.VOLUME_DELTA_SMALL
                 time.sleep(duration / 100)
 
     def get_volume(self):
