@@ -361,7 +361,7 @@ class MyView(arcade.View):
         self.url_has_changed = True
 
 
-def main(fullscreen=True, skip_downloaded=False):
+def main(fullscreen=False, skip_downloaded=False):
     if fullscreen:
         screen_width, screen_height = arcade.get_display_size()
     else:

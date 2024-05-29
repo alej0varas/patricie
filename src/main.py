@@ -29,9 +29,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-f",
         "--fullscreen",
-        default=True,
+        default=False,
         action=argparse.BooleanOptionalAction,
-        help="Use fullscreen. Default is true",
+        help="Use fullscreen. Default is false",
     )
     args = parser.parse_args()
     main(fullscreen=args.fullscreen, skip_downloaded=args.skip_downloaded)
