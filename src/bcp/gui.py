@@ -10,38 +10,53 @@ from .player import Player
 from .utils import get_clipboad_content, threaded
 
 __VERSION__ = "v0.1.3"
-_COMMIT_SHA = os.environ.get("COMMIT_SHA", "")
 _log = get_loger(__name__)
 
 DEFAULT_FONT_SIZE = 20
 DEFAULT_LINE_HEIGHT = 45
 SCREEN_TITLE = f"Patricie Player {__VERSION__}"
 
+
 class MyView(arcade.View):
-    def __init__(self, screen_width, screen_height, skip_downloaded=False):
+    def __init__(self, screen_width, screen_height, scale, skip_downloaded=False):
         super().__init__()
         self.screen_width, self.screen_height = screen_width, screen_height
+        # calculate elements' dimentions based on screen size
+        width_url_label = screen_width // 20
+        font_size_url_label = screen_height // 35
+        width_url_input_text = screen_width // 1.75
+        height_url_input_text = screen_height // 25
+        font_size_url_input_text = screen_height // 55
+        font_size_track_title = screen_height // 20
+        font_size_track_album = screen_height // 25
+        font_size_track_artist = screen_height // 23
+        font_size_time = font_size_track_title
 
         # gui top level elements
         self.ui = arcade.gui.UIManager()
         self.grid = arcade.gui.UIGridLayout(
-            column_count=6, row_count=2, horizontal_spacing=20, vertical_spacing=20
+            column_count=6, row_count=6, horizontal_spacing=20, vertical_spacing=20
         )
         self.anchor = self.ui.add(arcade.gui.UIAnchorLayout())
         self.anchor.add(
             anchor_x="center_x",
-            anchor_y="center_y",
+            anchor_y="top",
             child=self.grid,
         )
         # URL label and input field
         url_label = arcade.gui.UILabel(
             "Band Link:",
-            width=80,
-            text_color=arcade.color.WHITE_SMOKE,
-            font_size=30,
+            width=width_url_label,
+            text_color=arcade.color.LIGHT_BLUE,
+            font_size=font_size_url_label,
             align="left",
+            # helps to align verticaly with url_input_text. maybe
+            # there's a better way to do this when adding it to the
+            # grid. Tried align_vertical='center' in UIGridLayout but
+            # it doesn't work.
+            size_hint=(0, 1),
+            size_hint_max=(0, height_url_input_text),
         )
-        self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(
             left=5,
             right=5,
@@ -52,7 +67,10 @@ class MyView(arcade.View):
             ),
         )
         self.url_input_text = arcade.gui.UIInputText(
-            width=500, height=50, texture=bg_tex
+            width=width_url_input_text,
+            height=height_url_input_text,
+            texture=bg_tex,
+            font_size=font_size_url_input_text,
         )
         # may be not the same issue but cursor doesn't blink if text
         # is not set. So we set something and then remove to make it
@@ -61,32 +79,36 @@ class MyView(arcade.View):
         # https://github.com/pythonarcade/arcade/issues/1059
         self.url_input_text.text = " "
         self.url_input_text.text = ""
+
+        self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
         self.grid.add(
-            self.url_input_text.with_padding(all=15).with_background(texture=bg_tex),
+            self.url_input_text.with_padding(all=5).with_background(texture=bg_tex),
             col_num=3,
             row_num=0,
             col_span=3,
         )
+
         # Buttons
         self.play_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
             texture=textures._play_normal_texture,
             texture_hovered=textures._play_hover_texture,
             texture_pressed=textures._play_press_texture,
             texture_disabled=textures._play_disable_texture,
         )
         self.play_button.on_click = self.on_click_play
-        self.grid.add(self.play_button, col_num=0, row_num=1)
 
         self.pause_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
             texture=textures._pause_normal_texture,
             texture_hovered=textures._pause_hover_texture,
             texture_pressed=textures._pause_press_texture,
             texture_disabled=textures._pause_disable_texture,
         )
         self.pause_button.on_click = self.on_click_pause
-        self.grid.add(self.pause_button, col_num=1, row_num=1)
 
         self.next_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
             texture=textures._next_normal_texture,
             texture_hovered=textures._next_hover_texture,
             texture_pressed=textures._next_press_texture,
@@ -94,87 +116,97 @@ class MyView(arcade.View):
         )
         self.next_button.on_click = self.on_click_next
         self.next_button.disabled = True
-        self.grid.add(self.next_button, col_num=2, row_num=1)
 
         self.vol_down_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
             texture=textures._vol_down_normal_texture,
             texture_hovered=textures._vol_down_hover_texture,
             texture_pressed=textures._vol_down_press_texture,
             texture_disabled=textures._vol_down_disable_texture,
         )
         self.vol_down_button.on_click = self.on_click_vol_down
-        self.grid.add(self.vol_down_button, col_num=3, row_num=1)
 
         self.vol_up_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
             texture=textures._vol_up_normal_texture,
             texture_hovered=textures._vol_up_hover_texture,
             texture_pressed=textures._vol_up_press_texture,
             texture_disabled=textures._vol_up_disable_texture,
         )
         self.vol_up_button.on_click = self.on_click_vol_up
-        self.grid.add(self.vol_up_button, col_num=4, row_num=1)
 
         self.quit_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
             texture=textures._quit_normal_texture,
             texture_hovered=textures._quit_hover_texture,
             texture_pressed=textures._quit_press_texture,
             texture_disabled=textures._quit_disable_texture,
         )
         self.quit_button.on_click = self.on_click_quit
+
+        self.grid.add(self.play_button, col_num=0, row_num=1)
+        self.grid.add(self.pause_button, col_num=1, row_num=1)
+        self.grid.add(self.next_button, col_num=2, row_num=1)
+        self.grid.add(self.vol_down_button, col_num=3, row_num=1)
+        self.grid.add(self.vol_up_button, col_num=4, row_num=1)
         self.grid.add(self.quit_button, col_num=5, row_num=1)
 
         # track info
         self.text_track_title = arcade.gui.UILabel(
             " ",
-            width=screen_width,
             text_color=arcade.color.BLACK,
-            font_size=50,
+            font_size=font_size_track_title,
             align="center",
         )
         self.text_track_album = arcade.gui.UILabel(
-            " ", width=500, text_color=arcade.color.BLACK, font_size=30, align="center"
+            " ",
+            text_color=arcade.color.BLACK,
+            font_size=font_size_track_album,
+            align="center",
         )
         self.text_track_artist = arcade.gui.UILabel(
-            " ", width=500, text_color=arcade.color.BLACK, font_size=20, align="center"
-        )
-        self.anchor_track_info = self.ui.add(arcade.gui.UIAnchorLayout())
-        self.anchor_track_info.add(
-            anchor_x="center",
-            anchor_y="bottom",
-            child=self.text_track_title,
-            align_y=240,
-        )
-        self.anchor_track_info.add(
-            anchor_x="center",
-            anchor_y="bottom",
-            child=self.text_track_album,
-            align_y=200,
-        )
-        self.anchor_track_info.add(
-            anchor_x="center",
-            anchor_y="bottom",
-            child=self.text_track_artist,
-            align_y=180,
+            " ",
+            text_color=arcade.color.BLACK,
+            font_size=font_size_track_artist,
+            align="center",
         )
         self.text_time = arcade.gui.UILabel(
-            " ", width=500, text_color=arcade.color.BLACK, font_size=40, align="center"
+            " ",
+            text_color=arcade.color.BLACK,
+            font_size=font_size_time,
+            align="center",
         )
-        self.anchor_track_info.add(
-            anchor_x="center",
-            anchor_y="bottom",
-            child=self.text_time,
-            align_y=50,
+        self.grid.add(self.text_track_title, col_num=0, row_num=2, col_span=6)
+        self.grid.add(
+            self.text_track_album,
+            col_num=0,
+            row_num=3,
+            col_span=6,
+        )
+        self.grid.add(
+            self.text_track_artist,
+            col_num=0,
+            row_num=4,
+            col_span=6,
+        )
+        self.grid.add(
+            self.text_time,
+            col_num=0,
+            row_num=5,
+            col_span=6,
         )
 
         # version text
-        self.anchor_version = self.ui.add(arcade.gui.UIAnchorLayout())
-        self.text_version = arcade.gui.UILabel(
-            f"Version: {__VERSION__} - Build: {_COMMIT_SHA}"
+        text_version = arcade.gui.UILabel(
+            "Version: {} - Build: {}".format(
+                __VERSION__, os.environ.get("COMMIT_SHA", "")
+            )
         )
-        self.anchor_version.add(
+
+        self.ui.add(arcade.gui.UIAnchorLayout()).add(
             anchor_x="left",
             anchor_y="bottom",
-            child=self.text_version,
+            child=text_version,
             align_x=10,
             align_y=10,
         )
@@ -359,13 +391,25 @@ class MyView(arcade.View):
 
 
 def main(fullscreen=False, skip_downloaded=False):
-    if fullscreen:
-        screen_width, screen_height = arcade.get_display_size()
+    # assets scale is 1 for screen resolution 1920x1080 from wich we
+    # take the smaller value.
+    screen_width, screen_height = arcade.get_display_size()
+    # reduce screen dimentions to 80% an then make the screen
+    # dimensions a square the size of the smaller side
+    screen_width = int(screen_width * 0.8)
+    screen_height = int(screen_height * 0.8)
+    if screen_height > screen_width:
+        screen_height = screen_width
     else:
-        screen_width = 640
-        screen_height = 480
+        screen_width = screen_height
+    # calculate scale using user screen size
+    scale = 1 / (1080 / screen_width)
     window = arcade.Window(
-        screen_width, screen_height, SCREEN_TITLE, resizable=True, fullscreen=fullscreen
+        screen_width,
+        screen_height,
+        f"Patricie Player {__VERSION__}",
+        fullscreen=fullscreen,
+        center_window=True,
     )
-    window.show_view(MyView(screen_width, screen_height, skip_downloaded))
+    window.show_view(MyView(screen_width, screen_height, scale, skip_downloaded))
     window.run()
