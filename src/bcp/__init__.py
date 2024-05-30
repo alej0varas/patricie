@@ -1,1 +1,1 @@
-from . import bandcamplib, player, gui  # noqa: F401
+__VERSION__ = "v0.1.4"

@@ -9,7 +9,7 @@ from .log import get_loger
 from .player import Player
 from .utils import get_clipboad_content, threaded
 
-__VERSION__ = "v0.1.3"
+from . import __VERSION__
 _log = get_loger(__name__)
 
 DEFAULT_FONT_SIZE = 20
