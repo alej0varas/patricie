@@ -95,7 +95,7 @@ def _get_tracks_from_html(html):
     for script in soup.find_all("script"):
         if script.has_attr("data-tralbum"):
             for track in json.loads(script["data-tralbum"])["trackinfo"]:
-                if track["id"]:
+                if track["id"] and track["file"]:
                     info = {
                         "url": track["file"]["mp3-128"],
                         "title": track["title"],
