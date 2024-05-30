@@ -1,4 +1,4 @@
 # spec file generated unsing:
-# pyinstaller src/main.py --name mulpyplayer --onefile --clean --add-data "assets:assets"
+# pyinstaller src/main.py --name patricie --onefile --clean --add-data "assets:assets"
 pyinstall:
-	pyinstaller mulpyplayer.spec
+	pyinstaller patricie-linux.spec

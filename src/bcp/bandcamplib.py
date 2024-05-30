@@ -20,7 +20,7 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
-_user_data_dir = user_data_dir("mulpyplayer")
+_user_data_dir = user_data_dir("patricie")
 _log("User data directory:", _user_data_dir)
 _tracks_dir = os.path.join(_user_data_dir, "tracks")
 _log("Traks directory:", _tracks_dir)
