@@ -1,3 +1,4 @@
+import requests
 import json
 import os
 import time
@@ -14,6 +15,64 @@ from .utils import Session
 
 dotenv.load_dotenv()
 _log = get_loger(__name__)
+
+
+def load_url(url):
+    url_valid = validate_url(url)
+    r = fetch_band_info(url_valid)
+    return r
+
+
+def validate_url(url):
+    return url
+
+
+def fetch_band_info(url):
+    html = requests.get(url).content
+    r = extract_band_info(html)
+    return r
+
+
+def extract_band_info(html):
+    soup = BeautifulSoup(html, "html.parser")
+    url = soup.find("meta", property="og:url")["content"]
+    name = soup.find("meta", property="og:title")["content"]
+    for s in soup.find_all("script"):
+        if s.get("data-tralbum"):
+            url_d = json.loads(s["data-tralbum"])['url']
+            break
+    r = {
+        "band": {"name": name, "url": url, "url_discography": url_d},
+        "albums": get_albums_info(html),
+    }
+    return r
+
+
+def get_albums_info(html):
+    soup = BeautifulSoup(html, "html.parser")
+    ol_tag = soup.find("ol", id="music-grid")
+    r = list()
+    # if ol_tag is None:
+    #    return list()
+    data_items = ol_tag.get("data-client-items")
+    if data_items:
+        for item in json.loads(ol_tag["data-client-items"]):
+            item.pop("art_id")
+            item.pop("type")
+            r.append(item)
+    else:
+        for li in ol_tag.find_all("li"):
+            r.append(
+                {
+                    "artist": li.find("span").text.strip(),
+                    "band_id": int(li["data-band-id"]),
+                    "id": int(li["data-item-id"].split("-")[1]),
+                    "page_url": li.find("a")["href"],
+                    "title": li.find("p").contents[0].strip(),
+                }
+            )
+    return r
+
 
 THROTTLE_TIME = 5
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
@@ -71,23 +130,6 @@ def _get_albums_urls_from_url(url):
         album_url = parsed_url._replace(path=album_url_path).geturl()
         albums_urls.append(album_url)
     return albums_urls
-
-
-def _get_albums_urls_from_html(html):
-    soup = BeautifulSoup(html, "html.parser")
-    ol_tag = soup.find("ol", id="music-grid")
-    if ol_tag is None:
-        return list()
-    hrefs = list()
-    if ol_tag.get("data-client-items"):
-        _log("Album URLs obtained from data attribute")
-        for i in json.loads(ol_tag["data-client-items"]):
-            hrefs.append(i["page_url"])
-    else:
-        _log("Album URLs obtained from li href")
-        hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
-    _log("Lodaded items count:", len(hrefs))
-    return hrefs
 
 
 def _get_tracks_from_html(html):
