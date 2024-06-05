@@ -1,13 +1,14 @@
 import unittest
-from .context import bcp
+from .context import gui, log
 
 
-bcp.log.DEBUG = True
+log.DEBUG = True
 
 
 class MainTests(unittest.TestCase):
     def test_main_with_artist(self):
-        bcp.gui.main(
+        gui.main(
+            url="https://queenofsaba.bandcamp.com/music",
             skip_downloaded=not True,
             fullscreen=False,
         )

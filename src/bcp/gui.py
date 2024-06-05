@@ -10,6 +10,7 @@ from .player import Player
 from .utils import get_clipboad_content, threaded
 
 from . import __VERSION__
+
 _log = get_loger(__name__)
 
 DEFAULT_FONT_SIZE = 20
@@ -18,7 +19,9 @@ SCREEN_TITLE = f"Patricie Player {__VERSION__}"
 
 
 class MyView(arcade.View):
-    def __init__(self, screen_width, screen_height, scale, skip_downloaded=False):
+    def __init__(
+        self, screen_width, screen_height, scale, skip_downloaded=False, url=None
+    ):
         super().__init__()
         self.screen_width, self.screen_height = screen_width, screen_height
         # calculate elements' dimentions based on screen size
@@ -211,10 +214,14 @@ class MyView(arcade.View):
             align_y=10,
         )
 
+        self.url_has_changed = False
+        self._current_url = url
+        self.url_input_text.text = url
+        if self._current_url:
+            self.url_has_changed = True
+
         self.player = Player(self.handler_music_over, skip_downloaded)
         self.keys_held = dict()
-        self._current_url = ""
-        self.url_has_changed = False
         self.focus_set = dict()
         self.current_track_info = None
 
@@ -222,7 +229,11 @@ class MyView(arcade.View):
         if self.url_has_changed:
             self.current_url = self.url_input_text.text
             self.url_has_changed = False
-            self.player.setup(self.current_url)
+            self.band = self.player.load_band(self.current_url)
+            self.album = self.player.load_album(self.band["albums"][0]["page_url"])
+            self.tracks = self.album["tracks"]
+            self.player.play(self.tracks[0])
+
         if self.current_url:
             self.player.play()
             self.update_track_info()
@@ -390,7 +401,7 @@ class MyView(arcade.View):
         self.url_has_changed = True
 
 
-def main(fullscreen=False, skip_downloaded=False):
+def main(url=None, fullscreen=False, skip_downloaded=False):
     # assets scale is 1 for screen resolution 1920x1080 from wich we
     # take the smaller value.
     screen_width, screen_height = arcade.get_display_size()
@@ -411,5 +422,7 @@ def main(fullscreen=False, skip_downloaded=False):
         fullscreen=fullscreen,
         center_window=True,
     )
-    window.show_view(MyView(screen_width, screen_height, scale, skip_downloaded))
+    window.show_view(
+        MyView(screen_width, screen_height, scale, skip_downloaded, url=url)
+    )
     window.run()

@@ -44,7 +44,7 @@ class MainTests(unittest.TestCase):
             "albums": bandcamplib.get_albums_info(data.band_page_html),
         }
         r = bandcamplib.extract_band_info(data.band_page_html)
-        self.maxDiff=None
+        self.maxDiff = None
         self.assertDictEqual(er, r)
 
     def test_get_albums_info_using_data(self):

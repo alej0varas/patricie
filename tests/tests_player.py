@@ -1,21 +1,13 @@
 import unittest
 from . import constants
-from .context import bcp
+from .context import player, log
+
+log.DEBUG = True
 
 
-bcp.log.DEBUG = True
-
-
-class MainTests(unittest.TestCase):
-    def test_main_with_artist(self):
-        bcp.player.main(
-            f"https://{constants.BC_BANDNAME}.bandcamp.com/",
-            skip_downloaded=not True,
-            fullscreen=False,
+class PlayerTests(unittest.TestCase):
+    def test_load_artist(self):
+        r = player.Player(lambda x: x).load_band(
+            f"https://{constants.BC_BANDNAME}.bandcamp.com/"
         )
-
-    def test_main_with_album(self):
-        bcp.player.main("https://<bandname>.bandcamp.com/album/<album_name>/")
-
-    def test_main_with_track(self):
-        bcp.player.main("https://<bandname>.bandcamp.com/track/<track_name>/")
+        print(r)

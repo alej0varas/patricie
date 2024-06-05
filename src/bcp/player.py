@@ -18,44 +18,51 @@ class Player:
         self._handler_music_over = handler_music_over
         self.skip_downloaded = skip_downloaded
         self.playing = False
-
-    def setup(self, url):
-        self.media_player = None
-        self.track = None
-        self.do_stop = False
         self.user_volume = 100
-        self.mp3s_iterator = None
-        self.mp3s_iterator = bandcamplib.get_mp3s_from_url(url)
+
+    # def setup(self):
+    #     self.media_player = None
+    #     self.do_stop = False
+
+    # @threaded
+    def load_band(self, url):
+        self.band = bandcamplib.load_band(url)
+        return self.band
+
+    # @threaded
+    def load_artist(self, url):
+        self.artist = bandcamplib.load_url(url)
+        return self.artist
+
+    # def play_artist(self):
+    #     pass
+
+    # @threaded
+    def load_album(self, url):
+        full_url = self.band["url"] + url
+        self.album = bandcamplib.load_album(full_url)
+        return self.album
+
+    # def play_album(self, album):
+    #     pass
+
+    # def load_track(self, track):
+    #     pass
 
     @threaded
-    def play(self):
-        if self.do_stop:
-            return
-        if not self.media_player:
-            try:
-                self.track, downloaded = self.mp3s_iterator.__next__()
-            except StopIteration as e:
-                _log("Finished iterating tracks because reason")
-                _log(e)
-                return
-            if self.skip_downloaded and downloaded:
-                _log("Skip song:", self.track["title"])
-                self.play()
-                return
-            self.my_music = arcade.load_sound(self.track["path"], streaming=True)
-            self.media_player = self.my_music.play()
-            self.media_player.volume = 0
-            self.fade_in()
-            try:
-                self.media_player.pop_handlers()
-            except Exception:
-                pass
-            self.media_player.push_handlers(on_eos=self._handler_music_over)
-            self.playing = True
-        else:
-            self.media_player.play()
-            self.fade_in(0.5)
-            self.playing = True
+    def play(self, track):
+        self.track = track
+        self.my_music = arcade.load_sound(track["path"], streaming=True)
+        self.media_player = self.my_music.play()
+        self.media_player.volume = 0
+        self.fade_in()
+        # if self.skip_downloaded and downloaded:
+        try:
+            self.media_player.pop_handlers()
+        except Exception:
+            pass
+        self.media_player.push_handlers(on_eos=self._handler_music_over)
+        self.playing = True
 
     @threaded
     def pause(self):
@@ -144,12 +151,12 @@ class Player:
 
     def get_artist(self):
         if self.playing:
-            return "{artist}".format(**self.track)
+            return "{name}".format(**self.band)
         return ""
 
     def get_album(self):
         if self.playing:
-            return "{album}".format(**self.track)
+            return "{name}".format(**self.album)
         return ""
 
     def get_title(self):
