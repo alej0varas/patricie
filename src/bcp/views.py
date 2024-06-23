@@ -1,3 +1,4 @@
+# fmt: off
 import os
 import time
 from datetime import timedelta
@@ -17,7 +18,7 @@ class MainView(arcade.View):
         super().__init__()
         # calculate elements' dimentions based on screen size
         width_url_label = screen_width // 20
-        font_size_url_label = screen_height // 35
+        font_size_url_label = screen_height // 55
         width_url_input_text = screen_width // 1.75
         height_url_input_text = screen_height // 25
         font_size_url_input_text = screen_height // 55
@@ -30,20 +31,18 @@ class MainView(arcade.View):
         # GUI top level elements
         #
         self.ui = arcade.gui.UIManager()
-        self.grid = arcade.gui.UIGridLayout(column_count=6, row_count=6, horizontal_spacing=20, vertical_spacing=20)
+        self.grid = arcade.gui.UIGridLayout(column_count=1, row_count=6, vertical_spacing=20)
         anchor = self.ui.add(arcade.gui.UIAnchorLayout())
-        anchor.add(anchor_x="center_x", anchor_y="top", child=self.grid)
+        anchor.add(anchor_x="center", anchor_y="top", child=self.grid)
+
+        # TODO: another anchor for player anchored to bottom
 
         #
         # first row: ..., url input, ...
         #
-        # `size_hint` and `size_hint_max` used to help align verticaly
-        # with url_input_text. maybe there's a better way to do this
-        # when adding it to the grid. Tried align_vertical='center' in
-        # UIGridLayout but it doesn't work.
-        url_label = arcade.gui.UILabel("Band Link:", width=width_url_label, text_color=arcade.color.LIGHT_BLUE, font_size=font_size_url_label, align="left", size_hint=(0, 1), size_hint_max=(0, height_url_input_text))
+        url_label = arcade.gui.UILabel("Band Link:", text_color=arcade.color.LIGHT_BLUE, font_size=font_size_url_label)
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(left=5, right=5, top=5, bottom=5, texture=arcade.load_texture(":resources:gui_basic_assets/window/grey_panel.png"))
-        self.url_input_text = arcade.gui.UIInputText(width=width_url_input_text, height=height_url_input_text, texture=bg_tex, font_size=font_size_url_input_text)
+        self.url_input_text = arcade.gui.UIInputText(texture=bg_tex, font_size=font_size_url_input_text)
         # may be not the same issue but cursor doesn't blink if text
         # is not set. So we set something and then remove to make it
         # empty again see. seting focus at start don't make cursor
@@ -55,12 +54,18 @@ class MainView(arcade.View):
         self.load_band_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
         self.load_band_button.on_click = self.on_click_load_band
 
-        self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
-        self.grid.add(self.url_input_text.with_padding(all=5).with_background(texture=bg_tex), col_num=3, row_num=0, col_span=2)
-        self.grid.add(self.load_band_button, col_num=5, row_num=0)
+        _grid = arcade.gui.UIGridLayout(column_count=3, row_count=1, horizontal_spacing=20)
+        _grid.add(url_label, col_num=0, row_num=0)
+        _grid.add(self.url_input_text.with_background(texture=bg_tex), col_num=1, row_num=0)
+        _grid.add(self.load_band_button, col_num=2, row_num=0)
+
+        self.grid.add(_grid, col_num=0, row_num=0)
+        # self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
+        # self.grid.add(self.url_input_text.with_padding(all=5).with_background(texture=bg_tex), col_num=3, row_num=0, col_span=2)
+        # self.grid.add(self.load_band_button, col_num=5, row_num=0)
 
         #
-        # player buttons
+        # player buttons at the bottom
         #
         self.play_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
         self.play_button.on_click = self.on_click_play
@@ -81,12 +86,15 @@ class MainView(arcade.View):
         self.quit_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._quit_normal_texture, texture_hovered=textures._quit_hover_texture, texture_pressed=textures._quit_press_texture, texture_disabled=textures._quit_disable_texture)
         self.quit_button.on_click = self.on_click_quit
 
-        self.grid.add(self.play_button, col_num=0, row_num=1)
-        self.grid.add(self.pause_button, col_num=1, row_num=1)
-        self.grid.add(self.next_button, col_num=2, row_num=1)
-        self.grid.add(self.vol_down_button, col_num=3, row_num=1)
-        self.grid.add(self.vol_up_button, col_num=4, row_num=1)
-        self.grid.add(self.quit_button, col_num=5, row_num=1)
+        _grid = arcade.gui.UIGridLayout(column_count=6, row_count=1, horizontal_spacing=20)
+
+        _grid.add(self.play_button, col_num=0)
+        _grid.add(self.pause_button, col_num=1)
+        _grid.add(self.next_button, col_num=2)
+        _grid.add(self.vol_down_button, col_num=3)
+        _grid.add(self.vol_up_button, col_num=4)
+        _grid.add(self.quit_button, col_num=5)
+        self.grid.add(_grid, col_num=0, row_num=1)
 
         #
         # track info
@@ -95,10 +103,13 @@ class MainView(arcade.View):
         self.text_track_album = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_album, align="center")
         self.text_track_artist = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_artist, align="center")
         self.text_time = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_time, align="center")
-        self.grid.add(self.text_track_title, col_num=0, row_num=2, col_span=6)
-        self.grid.add(self.text_track_album, col_num=0, row_num=3, col_span=6)
-        self.grid.add(self.text_track_artist, col_num=0, row_num=4, col_span=6)
-        self.grid.add(self.text_time, col_num=0, row_num=5, col_span=6)
+
+        _grid = arcade.gui.UIGridLayout(column_count=1, row_count=4, vertical_spacing=20)
+        _grid.add(self.text_track_title, col_num=0, row_num=0)
+        _grid.add(self.text_track_album, col_num=0, row_num=1)
+        _grid.add(self.text_track_artist, col_num=0, row_num=2)
+        _grid.add(self.text_time, col_num=0, row_num=3)
+        self.grid.add(_grid, col_num=0, row_num=2)
 
         #
         # version/build text
@@ -106,6 +117,10 @@ class MainView(arcade.View):
         text_version = arcade.gui.UILabel("Version: {} - Build: {}".format(__VERSION__, os.environ.get("COMMIT_SHA", "")))
 
         self.ui.add(arcade.gui.UIAnchorLayout()).add(anchor_x="left", anchor_y="bottom", child=text_version, align_x=10, align_y=10)
+
+        #
+        # setup
+        #
 
         self.url_has_changed = False
         self._current_url = url
