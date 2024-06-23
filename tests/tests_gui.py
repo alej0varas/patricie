@@ -9,6 +9,6 @@ class MainTests(unittest.TestCase):
     def test_main_with_artist(self):
         gui.main(
             url="https://queenofsaba.bandcamp.com/music",
-            skip_downloaded=not True,
+            skip_downloaded=True,
             fullscreen=False,
         )

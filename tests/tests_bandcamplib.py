@@ -12,18 +12,12 @@ bandcamplib.THROTTLE_TIME = 1
 
 class MainTests(unittest.TestCase):
     @patch("bcp.bandcamplib.requests.get")
-    def test_load_band_url(self, rg):
+    def test_load_band(self, rg):
         rg.return_value.content = data.band_page_html
         url = f"https://{constants.BC_BANDNAME}.bandcamp.com"
         er = bandcamplib.fetch_band_info(url)
-        r = bandcamplib.load_url(url)
+        r = bandcamplib.load_band(url)
         self.assertDictEqual(er, r)
-
-    def test_validate_band_url(self):
-        url = f"https://{constants.BC_BANDNAME}.bandcamp.com"
-        er = url
-        r = bandcamplib.validate_url(url)
-        self.assertEqual(er, r)
 
     @patch("bcp.bandcamplib.requests.get")
     def test_fetch_band_info(self, rg):
@@ -34,14 +28,18 @@ class MainTests(unittest.TestCase):
         self.assertDictEqual(er, r)
         rg.assert_called_once_with(url)
 
+    def test_validate_url(self):
+        url = f"https://{constants.BC_BANDNAME}.bandcamp.com"
+        er = url
+        r = bandcamplib.validate_url(url)
+        self.assertEqual(er, r)
+
     def test_extract_band_info(self):
         er = {
-            "band": {
-                "name": "Band Name",
-                "url": f"https://{constants.BC_BANDNAME}.bandcamp.com",
-                "url_discography": f"https://{constants.BC_BANDNAME}.bandcamp.com/music",
-            },
-            "albums": bandcamplib.get_albums_info(data.band_page_html),
+            "name": "Band Name",
+            "url": f"https://{constants.BC_BANDNAME}.bandcamp.com",
+            "url_discography": f"https://{constants.BC_BANDNAME}.bandcamp.com/music",
+            "albums": bandcamplib.get_albums_info(data.band_page_html, "Artist Name"),
         }
         r = bandcamplib.extract_band_info(data.band_page_html)
         self.maxDiff = None
@@ -64,7 +62,7 @@ class MainTests(unittest.TestCase):
                 "title": "Album Dos",
             },
         ]
-        r = bandcamplib.get_albums_info(data.band_page_html)
+        r = bandcamplib.get_albums_info(data.band_page_html, "Artist God")
         self.assertListEqual(er, r)
 
     def test_get_albums_info_using_ol(self):
@@ -84,5 +82,5 @@ class MainTests(unittest.TestCase):
                 "title": "Album Cuatro",
             },
         ]
-        r = bandcamplib.get_albums_info(data.band_page_ol)
+        r = bandcamplib.get_albums_info(data.band_page_ol, "Artist God")
         self.assertListEqual(er, r)
