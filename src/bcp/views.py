@@ -27,92 +27,77 @@ class MainView(arcade.View):
         font_size_track_artist = screen_height // 23
         font_size_time = font_size_track_title
 
-        #
-        # GUI top level elements
-        #
         self.ui = arcade.gui.UIManager()
-        self.grid = arcade.gui.UIGridLayout(column_count=1, row_count=6, vertical_spacing=20)
-        anchor = self.ui.add(arcade.gui.UIAnchorLayout())
-        anchor.add(anchor_x="center", anchor_y="top", child=self.grid)
-
-        # TODO: another anchor for player anchored to bottom
 
         #
-        # first row: ..., url input, ...
+        # GUI first row: ..., url input, ...
         #
+
         url_label = arcade.gui.UILabel("Band Link:", text_color=arcade.color.LIGHT_BLUE, font_size=font_size_url_label)
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(left=5, right=5, top=5, bottom=5, texture=arcade.load_texture(":resources:gui_basic_assets/window/grey_panel.png"))
         self.url_input_text = arcade.gui.UIInputText(texture=bg_tex, font_size=font_size_url_input_text)
-        # may be not the same issue but cursor doesn't blink if text
-        # is not set. So we set something and then remove to make it
-        # empty again see. seting focus at start don't make cursor
-        # blink anyway :(
-        # https://github.com/pythonarcade/arcade/issues/1059
+        # may be not the same issue but cursor doesn't blink if text is not set. So we set something and then remove to make it empty again see. seting focus at start don't make cursor blink anyway :( https://github.com/pythonarcade/arcade/issues/1059
         self.url_input_text.text = " "
         self.url_input_text.text = ""
-
         self.load_band_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
         self.load_band_button.on_click = self.on_click_load_band
 
-        _grid = arcade.gui.UIGridLayout(column_count=3, row_count=1, horizontal_spacing=20)
-        _grid.add(url_label, col_num=0, row_num=0)
-        _grid.add(self.url_input_text.with_background(texture=bg_tex), col_num=1, row_num=0)
-        _grid.add(self.load_band_button, col_num=2, row_num=0)
+        self.top_grid = arcade.gui.UIGridLayout(column_count=3, row_count=1, horizontal_spacing=20, vertical_spacing=20)
+        self.top_grid.add(col_num=0, row_num=0, child=url_label)
+        self.top_grid.add(col_num=1, row_num=0, child=self.url_input_text.with_background(texture=bg_tex))
+        self.top_grid.add(col_num=2, row_num=0, child=self.load_band_button)
 
-        self.grid.add(_grid, col_num=0, row_num=0)
-        # self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
-        # self.grid.add(self.url_input_text.with_padding(all=5).with_background(texture=bg_tex), col_num=3, row_num=0, col_span=2)
-        # self.grid.add(self.load_band_button, col_num=5, row_num=0)
+        top_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        top_anchor.add(anchor_x="center", anchor_y="top", child=self.top_grid)
 
         #
-        # player buttons at the bottom
-        #
-        self.play_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
-        self.play_button.on_click = self.on_click_play
-
-        self.pause_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._pause_normal_texture, texture_hovered=textures._pause_hover_texture, texture_pressed=textures._pause_press_texture, texture_disabled=textures._pause_disable_texture)
-        self.pause_button.on_click = self.on_click_pause
-
-        self.next_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._next_normal_texture, texture_hovered=textures._next_hover_texture, texture_pressed=textures._next_press_texture, texture_disabled=textures._next_disable_texture)
-        self.next_button.on_click = self.on_click_next
-        self.next_button.disabled = True
-
-        self.vol_down_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._vol_down_normal_texture, texture_hovered=textures._vol_down_hover_texture, texture_pressed=textures._vol_down_press_texture, texture_disabled=textures._vol_down_disable_texture)
-        self.vol_down_button.on_click = self.on_click_vol_down
-
-        self.vol_up_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._vol_up_normal_texture, texture_hovered=textures._vol_up_hover_texture, texture_pressed=textures._vol_up_press_texture, texture_disabled=textures._vol_up_disable_texture)
-        self.vol_up_button.on_click = self.on_click_vol_up
-
-        self.quit_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._quit_normal_texture, texture_hovered=textures._quit_hover_texture, texture_pressed=textures._quit_press_texture, texture_disabled=textures._quit_disable_texture)
-        self.quit_button.on_click = self.on_click_quit
-
-        _grid = arcade.gui.UIGridLayout(column_count=6, row_count=1, horizontal_spacing=20)
-
-        _grid.add(self.play_button, col_num=0)
-        _grid.add(self.pause_button, col_num=1)
-        _grid.add(self.next_button, col_num=2)
-        _grid.add(self.vol_down_button, col_num=3)
-        _grid.add(self.vol_up_button, col_num=4)
-        _grid.add(self.quit_button, col_num=5)
-        self.grid.add(_grid, col_num=0, row_num=1)
-
-        #
-        # track info
+        # GUI track info
         #
         self.text_track_title = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_title, align="center")
         self.text_track_album = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_album, align="center")
         self.text_track_artist = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_artist, align="center")
         self.text_time = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_time, align="center")
 
-        _grid = arcade.gui.UIGridLayout(column_count=1, row_count=4, vertical_spacing=20)
-        _grid.add(self.text_track_title, col_num=0, row_num=0)
-        _grid.add(self.text_track_album, col_num=0, row_num=1)
-        _grid.add(self.text_track_artist, col_num=0, row_num=2)
-        _grid.add(self.text_time, col_num=0, row_num=3)
-        self.grid.add(_grid, col_num=0, row_num=2)
+        self.center_grid = arcade.gui.UIGridLayout(column_count=1, row_count=4, horizontal_spacing=20, vertical_spacing=20)
+        self.center_grid.add(col_num=0, row_num=0, child=self.text_track_title)
+        self.center_grid.add(col_num=0, row_num=1, child=self.text_track_album)
+        self.center_grid.add(col_num=0, row_num=2, child=self.text_track_artist)
+        self.center_grid.add(col_num=0, row_num=3, child=self.text_time)
+
+        center_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        center_anchor.add(anchor_x="center", anchor_y="center", child=self.center_grid)
+
 
         #
-        # version/build text
+        # GUI player buttons at the bottom
+        #
+        self.play_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
+        self.play_button.on_click = self.on_click_play
+        self.pause_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._pause_normal_texture, texture_hovered=textures._pause_hover_texture, texture_pressed=textures._pause_press_texture, texture_disabled=textures._pause_disable_texture)
+        self.pause_button.on_click = self.on_click_pause
+        self.next_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._next_normal_texture, texture_hovered=textures._next_hover_texture, texture_pressed=textures._next_press_texture, texture_disabled=textures._next_disable_texture)
+        self.next_button.on_click = self.on_click_next
+        self.next_button.disabled = True
+        self.vol_down_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._vol_down_normal_texture, texture_hovered=textures._vol_down_hover_texture, texture_pressed=textures._vol_down_press_texture, texture_disabled=textures._vol_down_disable_texture)
+        self.vol_down_button.on_click = self.on_click_vol_down
+        self.vol_up_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._vol_up_normal_texture, texture_hovered=textures._vol_up_hover_texture, texture_pressed=textures._vol_up_press_texture, texture_disabled=textures._vol_up_disable_texture)
+        self.vol_up_button.on_click = self.on_click_vol_up
+        self.quit_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._quit_normal_texture, texture_hovered=textures._quit_hover_texture, texture_pressed=textures._quit_press_texture, texture_disabled=textures._quit_disable_texture)
+        self.quit_button.on_click = self.on_click_quit
+
+        self.bottom_grid = arcade.gui.UIGridLayout(column_count=6, row_count=1, horizontal_spacing=20, vertical_spacing=20)
+        self.bottom_grid.add(col_num=0, row_num=0, child=self.play_button)
+        self.bottom_grid.add(col_num=1, row_num=0, child=self.pause_button)
+        self.bottom_grid.add(col_num=2, row_num=0, child=self.next_button)
+        self.bottom_grid.add(col_num=3, row_num=0, child=self.vol_down_button)
+        self.bottom_grid.add(col_num=4, row_num=0, child=self.vol_up_button)
+        self.bottom_grid.add(col_num=5, row_num=0, child=self.quit_button)
+
+        bottom_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        bottom_anchor.add(anchor_x="center", anchor_y="bottom", child=self.bottom_grid)
+
+        #
+        # GUI version/build text
         #
         text_version = arcade.gui.UILabel("Version: {} - Build: {}".format(__VERSION__, os.environ.get("COMMIT_SHA", "")))
 
@@ -214,8 +199,8 @@ class MainView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            # WHY[0]: remove self.grid so focus can be set again on it
-            self.focus_set.pop(self.grid, None)
+            # WHY[0]: remove self.top_grid so focus can be set again on it
+            self.focus_set.pop(self.top_grid, None)
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
@@ -224,7 +209,7 @@ class MainView(arcade.View):
                         self.current_url = t
                 case arcade.key.TAB:
                     # WHY[0]: just another widget not the text field
-                    self._set_focus_on_widget(self.grid)
+                    self._set_focus_on_widget(self.top_grid)
                 case arcade.key.ENTER:
                     self.play_button.on_click()
                     # don't know how to avoid \n to be added so we remove them
