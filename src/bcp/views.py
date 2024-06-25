@@ -1,4 +1,3 @@
-# fmt: off
 import os
 import time
 from datetime import timedelta
@@ -14,13 +13,11 @@ _log = get_loger(__name__)
 
 
 class MainView(arcade.View):
+    # fmt: off
     def __init__(self, screen_width, screen_height, scale, skip_downloaded=False, url=None):
         super().__init__()
-        # calculate elements' dimentions based on screen size
-        width_url_label = screen_width // 20
+        # Calculate elements' dimentions based on screen size.
         font_size_url_label = screen_height // 55
-        width_url_input_text = screen_width // 1.75
-        height_url_input_text = screen_height // 25
         font_size_url_input_text = screen_height // 55
         font_size_track_title = screen_height // 20
         font_size_track_album = screen_height // 25
@@ -29,44 +26,66 @@ class MainView(arcade.View):
 
         self.ui = arcade.gui.UIManager()
 
+        # GUI layout
         #
-        # GUI first row: ..., url input, ...
+        # | band link and load button                  |
+        # |--------------------------------------------|
+        # | band info                                  |
+        # |-------------+------------------------------|
+        # | albuml list | tracks list                  |
+        # |---------------------------+----------------|
+        # | album cover / track info  | player buttons |
         #
+        # Each row uses one anchor. Those that contains more than one
+        # element will use a grid with x columns and 1 row. Why? It's
+        # easier for me to align and set sizes. All elements have
+        # fixed dimensions and use placeholders when empty. Track and
+        # album lists have a fixed number of elements that will be
+        # populated on load and scroll.
 
+        #
+        # First anchor
+        #
         url_label = arcade.gui.UILabel("Band Link:", text_color=arcade.color.LIGHT_BLUE, font_size=font_size_url_label)
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(left=5, right=5, top=5, bottom=5, texture=arcade.load_texture(":resources:gui_basic_assets/window/grey_panel.png"))
         self.url_input_text = arcade.gui.UIInputText(texture=bg_tex, font_size=font_size_url_input_text)
-        # may be not the same issue but cursor doesn't blink if text is not set. So we set something and then remove to make it empty again see. seting focus at start don't make cursor blink anyway :( https://github.com/pythonarcade/arcade/issues/1059
+        # May be not the same issue but cursor doesn't blink if text is not set. Adding text and then removing text from input makes cursor blink. https://github.com/pythonarcade/arcade/issues/1059
         self.url_input_text.text = " "
         self.url_input_text.text = ""
         self.load_band_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
         self.load_band_button.on_click = self.on_click_load_band
 
-        self.top_grid = arcade.gui.UIGridLayout(column_count=3, row_count=1, horizontal_spacing=20, vertical_spacing=20)
-        self.top_grid.add(col_num=0, row_num=0, child=url_label)
-        self.top_grid.add(col_num=1, row_num=0, child=self.url_input_text.with_background(texture=bg_tex))
-        self.top_grid.add(col_num=2, row_num=0, child=self.load_band_button)
-
-        top_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
-        top_anchor.add(anchor_x="center", anchor_y="top", child=self.top_grid)
+        self.first_grid = arcade.gui.UIGridLayout(column_count=3, row_count=1, horizontal_spacing=20, vertical_spacing=20)
+        self.first_grid.add(col_num=0, row_num=0, child=url_label)
+        self.first_grid.add(col_num=1, row_num=0, child=self.url_input_text.with_background(texture=bg_tex))
+        self.first_grid.add(col_num=2, row_num=0, child=self.load_band_button)
+        first_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        first_anchor.add(anchor_x="center", anchor_y="top", child=self.first_grid)
 
         #
-        # GUI track info
+        # Second anchor. Band info.
+        #
+
+        #
+        # Third anchor. Album list and track list.
+        #
+
+        #
+        # Fourth anchor. Almub info. Track info.
         #
         self.text_track_title = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_title, align="center")
         self.text_track_album = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_album, align="center")
         self.text_track_artist = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_artist, align="center")
-        self.text_time = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_time, align="center")
+        self.text_time = arcade.gui.UILabel(" ",text_color=arcade.color.BLACK,font_size=font_size_time,align="center")
 
-        self.center_grid = arcade.gui.UIGridLayout(column_count=1, row_count=4, horizontal_spacing=20, vertical_spacing=20)
-        self.center_grid.add(col_num=0, row_num=0, child=self.text_track_title)
-        self.center_grid.add(col_num=0, row_num=1, child=self.text_track_album)
-        self.center_grid.add(col_num=0, row_num=2, child=self.text_track_artist)
-        self.center_grid.add(col_num=0, row_num=3, child=self.text_time)
+        self.track_info_grid = arcade.gui.UIGridLayout(column_count=1,row_count=4,horizontal_spacing=20,vertical_spacing=20)
+        self.track_info_grid.add(col_num=0, row_num=0, child=self.text_track_title)
+        self.track_info_grid.add(col_num=0, row_num=1, child=self.text_track_album)
+        self.track_info_grid.add(col_num=0, row_num=2, child=self.text_track_artist)
+        self.track_info_grid.add(col_num=0, row_num=3, child=self.text_time)
 
-        center_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
-        center_anchor.add(anchor_x="center", anchor_y="center", child=self.center_grid)
-
+        track_info_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        track_info_anchor.add(anchor_x="center", anchor_y="center", child=self.track_info_grid)
 
         #
         # GUI player buttons at the bottom
@@ -85,26 +104,26 @@ class MainView(arcade.View):
         self.quit_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._quit_normal_texture, texture_hovered=textures._quit_hover_texture, texture_pressed=textures._quit_press_texture, texture_disabled=textures._quit_disable_texture)
         self.quit_button.on_click = self.on_click_quit
 
-        self.bottom_grid = arcade.gui.UIGridLayout(column_count=6, row_count=1, horizontal_spacing=20, vertical_spacing=20)
-        self.bottom_grid.add(col_num=0, row_num=0, child=self.play_button)
-        self.bottom_grid.add(col_num=1, row_num=0, child=self.pause_button)
-        self.bottom_grid.add(col_num=2, row_num=0, child=self.next_button)
-        self.bottom_grid.add(col_num=3, row_num=0, child=self.vol_down_button)
-        self.bottom_grid.add(col_num=4, row_num=0, child=self.vol_up_button)
-        self.bottom_grid.add(col_num=5, row_num=0, child=self.quit_button)
+        self.player_grid = arcade.gui.UIGridLayout(column_count=6, row_count=1, horizontal_spacing=20, vertical_spacing=20)
+        self.player_grid.add(col_num=0, row_num=0, child=self.play_button)
+        self.player_grid.add(col_num=1, row_num=0, child=self.pause_button)
+        self.player_grid.add(col_num=2, row_num=0, child=self.next_button)
+        self.player_grid.add(col_num=3, row_num=0, child=self.vol_down_button)
+        self.player_grid.add(col_num=4, row_num=0, child=self.vol_up_button)
+        self.player_grid.add(col_num=5, row_num=0, child=self.quit_button)
 
-        bottom_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
-        bottom_anchor.add(anchor_x="center", anchor_y="bottom", child=self.bottom_grid)
+        player_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        player_anchor.add(anchor_x="center", anchor_y="bottom", child=self.player_grid)
 
         #
-        # GUI version/build text
+        # Version/build text
         #
         text_version = arcade.gui.UILabel("Version: {} - Build: {}".format(__VERSION__, os.environ.get("COMMIT_SHA", "")))
 
         self.ui.add(arcade.gui.UIAnchorLayout()).add(anchor_x="left", anchor_y="bottom", child=text_version, align_x=10, align_y=10)
 
         #
-        # setup
+        # Setup
         #
 
         self.url_has_changed = False
@@ -117,6 +136,7 @@ class MainView(arcade.View):
         self.keys_held = dict()
         self.focus_set = dict()
         self.current_track_info = None
+        # fmt: on
 
     def on_click_load_band(self, *_):
         if self.url_has_changed:
@@ -199,8 +219,7 @@ class MainView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            # WHY[0]: remove self.top_grid so focus can be set again on it
-            self.focus_set.pop(self.top_grid, None)
+            self.focus_set.pop(self.url_grid, None)
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
@@ -208,12 +227,14 @@ class MainView(arcade.View):
                         _log("From clipboard", t)
                         self.current_url = t
                 case arcade.key.TAB:
-                    # WHY[0]: just another widget not the text field
-                    self._set_focus_on_widget(self.top_grid)
+                    self._set_focus_on_widget(self.url_grid)
                 case arcade.key.ENTER:
                     self.play_button.on_click()
-                    # don't know how to avoid \n to be added so we remove them
-                    self.url_input_text.text = self.url_input_text.text.replace("\n", "")
+                    # I don't know how to avoid "\n" to be added to
+                    # the input text so it's removed.
+                    self.url_input_text.text = self.url_input_text.text.replace(
+                        "\n", ""
+                    )
                 case _:
                     self.current_url = self.url_input_text.text
             return arcade.pyglet.event.EVENT_HANDLED
@@ -261,28 +282,33 @@ class MainView(arcade.View):
             if self.player.playing:
                 _time = self.player.get_position()
                 milliseconds = int((_time % 1) * 100)
-                pos_string = "{}.{:02d}".format(str(timedelta(seconds=int(_time)))[2:], milliseconds)
+                pos_string = "{}.{:02d}".format(
+                    str(timedelta(seconds=int(_time)))[2:], milliseconds
+                )
                 _time = self.current_track_info["duration"]
                 milliseconds = int((_time % 1) * 100)
-                dur_string = "{}.{:02d}".format(str(timedelta(seconds=int(_time)))[2:], milliseconds)
+                dur_string = "{}.{:02d}".format(
+                    str(timedelta(seconds=int(_time)))[2:], milliseconds
+                )
                 time_string = pos_string + " / " + dur_string
                 self.text_time.text = time_string
 
         self.ui.draw()
 
     def _set_focus_on_widget(self, widget):
-        # WHY[0]: this method exist because we haven't found another
-        # way to set focus on a widget. we use it to set focus on
-        # url_input_text when app start. to leave field when pressing
-        # TAB we want to set focus on other widget, setting it to
-        # self.grid works. when user click on url_input_text again we
-        # remove self.grid so using tab will work again. it's
-        # necessary because this function is called all the time by
-        # on_update.
+        # This method exist because I haven't found another way to set
+        # focus on a widget. It's used to set focus on
+        # `url_input_text` when app starts. Setting focus on other
+        # widget allows to "leave" the field when pressing
+        # TAB. Setting the focus on self.grid works. When the user
+        # clicks on `url_input_text` again self.grid is removed to
+        # allow TAB to work again.
         if not self.focus_set.get(widget):
             self.focus_set[widget] = True
             x, y = widget.rect.center
-            self.ui.dispatch_event("on_event", arcade.gui.UIMousePressEvent("", x, y, 0, 0))
+            self.ui.dispatch_event(
+                "on_event", arcade.gui.UIMousePressEvent("", x, y, 0, 0)
+            )
 
     @property
     def current_url(self):
