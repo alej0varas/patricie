@@ -46,6 +46,8 @@ class MainView(arcade.View):
         #
         # First anchor
         #
+        # | label | text field | button |
+        #
         url_label = arcade.gui.UILabel("Band Link:", text_color=arcade.color.LIGHT_BLUE, font_size=font_size_url_label)
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(left=5, right=5, top=5, bottom=5, texture=arcade.load_texture(":resources:gui_basic_assets/window/grey_panel.png"))
         self.url_input_text = arcade.gui.UIInputText(texture=bg_tex, font_size=font_size_url_input_text)
@@ -65,13 +67,45 @@ class MainView(arcade.View):
         #
         # Second anchor. Band info.
         #
+        # | image | label |
+        self.band_image_texture = arcade.texture.load_texture('/home/alej0/tmp/patricie/band_image_1234.jpg')
+        self.band_image = arcade.gui.UIImage(texture=self.band_image_texture)
+        self.band_name = arcade.gui.UILabel("<band name>", text_color=arcade.color.BLACK, font_size=20)
+
+        self.second_grid = arcade.gui.UIGridLayout(column_count=3, row_count=1, horizontal_spacing=20, vertical_spacing=20)
+        self.second_grid.add(col_num=0, row_num=0, child=self.band_image)
+        self.second_grid.add(col_num=1, row_num=0, child=self.band_name)
+        second_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        second_anchor.add(anchor_x="center", anchor_y="top", align_y=-100, child=self.second_grid)
 
         #
         # Third anchor. Album list and track list.
         #
+        # | album 1 | track 1 |
+        # | ...     | ...     |
+        _button_height = 30
+        self.third_grid = arcade.gui.UIGridLayout(column_count=2, row_count=1, horizontal_spacing=1, vertical_spacing=1)
 
-        #
-        # Fourth anchor. Almub info. Track info.
+        def _callback_album(event):
+            print(self.albums.get(event.action))
+        self.albums_row = arcade.gui.constructs.UIButtonRow(vertical=True, callback=_callback_album, space_between=1)
+        self.albums = dict([(f"album {i}", i) for i in range(10)])
+        for k, v in self.albums.items():
+            self.albums_row.add_button(k, height=_button_height)
+        self.third_grid.add(col_num=0, row_num=0, child=self.albums_row)
+
+        def _callback_track(event):
+            print(self.tracks.get(event.action))
+        self.tracks_row = arcade.gui.constructs.UIButtonRow(vertical=True, callback=_callback_track, space_between=1)
+        self.tracks = dict([(f"track {i}", i) for i in range(10)])
+        for k, v in self.tracks.items():
+            self.tracks_row.add_button(k, height=_button_height)
+        self.third_grid.add(col_num=1, row_num=0, child=self.tracks_row)
+
+        third_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        third_anchor.add(anchor_x="center", anchor_y="top", align_y=-250, child=self.third_grid)
+
+        # Fourth anchor. Album info. Track info.
         #
         self.text_track_title = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_title, align="center")
         self.text_track_album = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_album, align="center")
