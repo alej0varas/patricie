@@ -10,11 +10,13 @@ with open("src/_constants.py", "w") as f:
     f.write(f'COMMIT_SHA = "{_commit_sha[:8]}"\n')
 # end constants
 
+datas = [("assets", "assets"), ("certifi", "certifi")]
+
 a = Analysis(
     ["src/main.py", "src/_constants.py"],
     pathex=[],
     binaries=[],
-    datas=[("assets", "assets")],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

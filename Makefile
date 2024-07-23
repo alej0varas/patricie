@@ -1,4 +1,10 @@
+# copy certificate to include it in build. added when removed
+# `requests` because I wasn't able to avoid getting a HTTP 403.
+certifi:
+	mkdir certifi
+	cp /home/alej0/src/patricie/venv/lib/python3.*/site-packages/certifi/cacert.pem certifi/
+
 # spec file generated unsing:
 # pyinstaller src/main.py --name patricie --onefile --clean --add-data "assets:assets"
-pyinstall:
+pyinstall: certifi
 	pyinstaller patricie-linux.spec

@@ -5,12 +5,12 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 import dotenv
-import requests_cache
 from bs4 import BeautifulSoup
 from platformdirs import user_data_dir
 from slugify import slugify
 
 from .log import get_loger
+from .utils import Session
 
 dotenv.load_dotenv()
 _log = get_loger(__name__)
@@ -20,13 +20,14 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
+
 _user_data_dir = user_data_dir("patricie")
 _log("User data directory:", _user_data_dir)
 _tracks_dir = os.path.join(_user_data_dir, "tracks")
 _log("Traks directory:", _tracks_dir)
 _environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
-_cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment)
-_session = requests_cache.CachedSession(cache_name=_cache_name)
+_cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment + ".sqlite")
+_session = Session(_cache_name)
 _log("Cache path:", _session.cache.cache_name)
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
@@ -119,8 +120,8 @@ def _fetch_url_content(url):
     try:
         _log("Request get:", url)
         return _session.get(url).content
-    except Exception:
-        raise StopIteration("Error getting url")
+    except Exception as e:
+        raise StopIteration(f"Error getting url {e}")
 
 
 def _throttle():

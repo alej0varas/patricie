@@ -1,11 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+datas = [("assets", "assets"), ("certifi", "certifi")]
 
 a = Analysis(
     ['src\\main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
