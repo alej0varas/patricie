@@ -1,4 +1,3 @@
-import requests
 import json
 import os
 import time
@@ -28,7 +27,7 @@ def validate_url(url):
 
 
 def fetch_band_info(url):
-    html = requests.get(url).content
+    html = _session.get(url).content
     r = extract_band_info(html)
     return r
 
@@ -86,7 +85,7 @@ def load_album(url):
 
 
 def fetch_album_info(url):
-    html = requests.get(url).content
+    html = _session.get(url).content
     album = extract_album_info(html)
     print(album)
     tracks = _get_tracks_from_html(html)

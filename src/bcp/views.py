@@ -253,7 +253,7 @@ class MainView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            self.focus_set.pop(self.url_grid, None)
+            self.focus_set.pop(self.first_grid, None)
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
@@ -261,7 +261,7 @@ class MainView(arcade.View):
                         _log("From clipboard", t)
                         self.current_url = t
                 case arcade.key.TAB:
-                    self._set_focus_on_widget(self.url_grid)
+                    self._set_focus_on_widget(self.first_grid)
                 case arcade.key.ENTER:
                     self.play_button.on_click()
                     # I don't know how to avoid "\n" to be added to
