@@ -43,8 +43,7 @@ class Player:
                 self.play()
                 return
             self.my_music = arcade.load_sound(self.track["path"], streaming=True)
-            self.media_player = self.my_music.play()
-            self.media_player.volume = 0
+            self.media_player = self.my_music.play(volume=0)
             self.fade_in()
             try:
                 self.media_player.pop_handlers()
@@ -70,14 +69,19 @@ class Player:
             return
         self.playing = False
         self.fade_out(0.25)
-        self.my_music.stop(self.media_player)
+        try:
+            self.my_music.stop(self.media_player)
+        except AttributeError:
+            pass
         self.media_player = None
         self.play()
 
     @threaded
     def fade_in(self, duration=1.0):
         if self.media_player:
-            new_vol = self.media_player.volume + Player.VOLUME_DELTA_SMALL
+            new_vol = (
+                self.my_music.get_volume(self.media_player) + Player.VOLUME_DELTA_SMALL
+            )
             for i in range(100):
                 if new_vol > 1:
                     new_vol = 1
@@ -90,7 +94,7 @@ class Player:
     @threaded
     def volume_up(self, value=VOLUME_DELTA):
         if self.media_player:
-            new_vol = self.media_player.volume + value
+            new_vol = self.my_music.get_volume(self.media_player) + value
             if new_vol > 1.0:
                 new_vol = 1
             self.volume_set(new_vol)
@@ -98,14 +102,17 @@ class Player:
     @threaded
     def volume_down(self, value=VOLUME_DELTA):
         if self.media_player:
-            new_vol = self.media_player.volume - value
+            new_vol = self.my_music.get_volume(self.media_player) - value
             if new_vol < 0.0:
                 new_vol = 0.0
             self.volume_set(new_vol)
 
     def volume_set(self, value, set_user_volume=True):
         if self.media_player:
-            self.media_player.volume = value
+            try:
+                self.my_music.set_volume(value, self.media_player)
+            except AttributeError:
+                pass
             if set_user_volume:
                 self.user_volume = value
 
@@ -117,7 +124,9 @@ class Player:
 
     def fade_out(self, duration=1.0):
         if self.media_player:
-            new_vol = self.media_player.volume - Player.VOLUME_DELTA_SMALL
+            new_vol = (
+                self.my_music.get_volume(self.media_player) - Player.VOLUME_DELTA_SMALL
+            )
             for volume in range(100):
                 if new_vol < 0.0:
                     new_vol = 0.0
@@ -127,13 +136,13 @@ class Player:
 
     def get_volume(self):
         if self.playing and self.media_player:
-            return self.media_player.volume
+            return self.my_music.get_volume(self.media_player)
         return 0.5
 
     def get_position(self):
         result = 0
         if self.playing and self.media_player:
-            result = self.media_player.time
+            result = self.my_music.get_stream_position(self.media_player)
         return result
 
     def get_duration(self):
