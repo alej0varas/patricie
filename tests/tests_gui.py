@@ -1,13 +1,13 @@
 import unittest
-from .context import bcp
+from .context import log, gui
 
 
-bcp.log.DEBUG = True
+log.DEBUG = True
 
 
 class MainTests(unittest.TestCase):
     def test_main_with_artist(self):
-        bcp.gui.main(
+        gui.main(
             skip_downloaded=not True,
             fullscreen=False,
         )
