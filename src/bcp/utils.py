@@ -1,9 +1,14 @@
+import http.client
 import sqlite3
 import ssl
 import threading
 import urllib.request
 from contextlib import contextmanager
 from tkinter import Tk
+
+from .log import get_loger
+
+_log = get_loger(__name__)
 
 
 def get_clipboad_content():
@@ -41,8 +46,16 @@ class Session:
 
     def _fetch(self, url):
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
-        with urllib.request.urlopen(url, context=context) as f:
-            content = f.read()
+        succes = False
+        while not succes:
+            try:
+                with urllib.request.urlopen(url, context=context) as f:
+                    content = f.read()
+            except http.client.IncompleteRead as e:
+                _log(f"failed to get url: {url}")
+                _log(f"error: {e}")
+            else:
+                succes = True
         return content
 
     @contextmanager
