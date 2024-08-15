@@ -10,6 +10,7 @@ from .player import Player
 from .utils import get_clipboad_content, threaded
 
 from . import __VERSION__
+
 _log = get_loger(__name__)
 
 DEFAULT_FONT_SIZE = 20
@@ -22,41 +23,19 @@ class MyView(arcade.View):
         super().__init__()
         self.screen_width, self.screen_height = screen_width, screen_height
         # calculate elements' dimentions based on screen size
-        width_url_label = screen_width // 20
-        font_size_url_label = screen_height // 35
-        width_url_input_text = screen_width // 1.75
-        height_url_input_text = screen_height // 25
-        font_size_url_input_text = screen_height // 55
-        font_size_track_title = screen_height // 20
-        font_size_track_album = screen_height // 25
-        font_size_track_artist = screen_height // 23
-        font_size_time = font_size_track_title
+        width_url_label = screen_width * 0.10
+        width_url_input_text = screen_width * 0.6
+        height_url_input_text = screen_height * 0.08
+        font_size_url_input_text = height_url_input_text * 0.5
+        font_size_url_label = font_size_url_input_text * 1
+        font_size_track_title = screen_height * 0.05
+        font_size_track_album = font_size_track_title * 0.8
+        font_size_track_artist = font_size_track_title * 0.6
+        font_size_time = screen_height * 0.05
+        margin_left = screen_width * 0.03
+        margin_top = -screen_width * 0.02
 
         # gui top level elements
-        self.ui = arcade.gui.UIManager()
-        self.grid = arcade.gui.UIGridLayout(
-            column_count=6, row_count=6, horizontal_spacing=20, vertical_spacing=20
-        )
-        self.anchor = self.ui.add(arcade.gui.UIAnchorLayout())
-        self.anchor.add(
-            anchor_x="center_x",
-            anchor_y="top",
-            child=self.grid,
-        )
-        # URL label and input field
-        url_label = arcade.gui.UILabel(
-            "Band Link:",
-            width=width_url_label,
-            text_color=arcade.color.LIGHT_BLUE,
-            font_size=font_size_url_label,
-            align="left",
-            # helps to align verticaly with url_input_text. maybe
-            # there's a better way to do this when adding it to the
-            # grid. Tried align_vertical='center' in UIGridLayout but
-            # it doesn't work.
-            size_hint=(0, 1),
-            size_hint_max=(0, height_url_input_text),
-        )
         bg_tex = arcade.gui.nine_patch.NinePatchTexture(
             left=5,
             right=5,
@@ -65,6 +44,30 @@ class MyView(arcade.View):
             texture=arcade.load_texture(
                 ":resources:gui_basic_assets/window/grey_panel.png"
             ),
+        )
+
+        self.ui = arcade.gui.UIManager()
+
+        # url label and input text grid
+        self.first_grid = arcade.gui.UIGridLayout(
+            column_count=2,
+            row_count=1,
+            # horizontal_spacing=20,
+        )
+        self.first_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        self.first_anchor.add(
+            anchor_x="left",
+            anchor_y="top",
+            align_x=margin_left,
+            align_y=margin_top,
+            child=self.first_grid,
+        )
+        # URL label and input field
+        self.url_label = arcade.gui.UILabel(
+            "Band Link:",
+            width=width_url_label,
+            text_color=arcade.color.LIGHT_BLUE,
+            font_size=font_size_url_label,
         )
         self.url_input_text = arcade.gui.UIInputText(
             width=width_url_input_text,
@@ -80,12 +83,29 @@ class MyView(arcade.View):
         self.url_input_text.text = " "
         self.url_input_text.text = ""
 
-        self.grid.add(url_label, col_num=0, row_num=0, col_span=2)
-        self.grid.add(
+        self.first_grid.add(self.url_label, col_num=0, row_num=0)
+        self.first_grid.add(
             self.url_input_text.with_padding(all=5).with_background(texture=bg_tex),
-            col_num=3,
+            col_num=1,
             row_num=0,
-            col_span=3,
+        )
+
+        # buttons grid, at the bottom
+        self.second_grid = arcade.gui.UIGridLayout(
+            column_count=6,
+            row_count=1,
+            # horizontal_spacing=20,
+            vertical_spacing=20,
+            # align_horizontal="left",
+            # size_hint=(0.1, 0.1),
+            # size_hint_max=(self.screen_width * 0.8, self.screen_height * 0.8),
+        )
+        self.second_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        self.second_anchor.add(
+            anchor_x="center",
+            anchor_y="bottom",
+            align_y=font_size_url_label * 2,
+            child=self.second_grid,
         )
 
         # Buttons
@@ -144,56 +164,80 @@ class MyView(arcade.View):
         )
         self.quit_button.on_click = self.on_click_quit
 
-        self.grid.add(self.play_button, col_num=0, row_num=1)
-        self.grid.add(self.pause_button, col_num=1, row_num=1)
-        self.grid.add(self.next_button, col_num=2, row_num=1)
-        self.grid.add(self.vol_down_button, col_num=3, row_num=1)
-        self.grid.add(self.vol_up_button, col_num=4, row_num=1)
-        self.grid.add(self.quit_button, col_num=5, row_num=1)
+        self.second_grid.add(self.play_button, col_num=0, row_num=0)
+        self.second_grid.add(self.pause_button, col_num=1, row_num=0)
+        self.second_grid.add(self.next_button, col_num=2, row_num=0)
+        self.second_grid.add(self.vol_down_button, col_num=3, row_num=0)
+        self.second_grid.add(self.vol_up_button, col_num=4, row_num=0)
+        self.second_grid.add(self.quit_button, col_num=5, row_num=0)
 
-        # track info
+        # track info grid
+        self.third_grid = arcade.gui.UIGridLayout(
+            column_count=1,
+            row_count=3,
+            align_horizontal="left",
+            vertical_spacing=20,
+        )
+        self.third_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        self.third_anchor.add(
+            anchor_x="left",
+            anchor_y="top",
+            align_x=margin_left,
+            align_y=-font_size_url_label * 5,
+            child=self.third_grid,
+        )
         self.text_track_title = arcade.gui.UILabel(
             " ",
             text_color=arcade.color.BLACK,
             font_size=font_size_track_title,
-            align="center",
         )
         self.text_track_album = arcade.gui.UILabel(
             " ",
             text_color=arcade.color.BLACK,
             font_size=font_size_track_album,
-            align="center",
         )
         self.text_track_artist = arcade.gui.UILabel(
             " ",
             text_color=arcade.color.BLACK,
             font_size=font_size_track_artist,
-            align="center",
         )
+        self.third_grid.add(self.text_track_title, col_num=0, row_num=0)
+        self.third_grid.add(
+            self.text_track_album,
+            col_num=0,
+            row_num=1,
+        )
+        self.third_grid.add(
+            self.text_track_artist,
+            col_num=0,
+            row_num=2,
+        )
+
+        # track duration
+        self.fourth_grid = arcade.gui.UIGridLayout(
+            column_count=1,
+            row_count=4,
+            align_horizontal="left",
+            vertical_spacing=20,
+        )
+        self.fourth_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
+        self.fourth_anchor.add(
+            anchor_x="center",
+            anchor_y="bottom",
+            align_y=font_size_url_label * 5.5,
+            child=self.fourth_grid,
+        )
+
         self.text_time = arcade.gui.UILabel(
             " ",
             text_color=arcade.color.BLACK,
             font_size=font_size_time,
-            align="center",
         )
-        self.grid.add(self.text_track_title, col_num=0, row_num=2, col_span=6)
-        self.grid.add(
-            self.text_track_album,
-            col_num=0,
-            row_num=3,
-            col_span=6,
-        )
-        self.grid.add(
-            self.text_track_artist,
-            col_num=0,
-            row_num=4,
-            col_span=6,
-        )
-        self.grid.add(
+
+        self.fourth_grid.add(
             self.text_time,
             col_num=0,
-            row_num=5,
-            col_span=6,
+            row_num=1,
         )
 
         # version text
@@ -217,13 +261,18 @@ class MyView(arcade.View):
         self.url_has_changed = False
         self.focus_set = dict()
         self.current_track_info = None
+        self.threads = list()
 
     def on_click_play(self, *_):
         if self.url_has_changed:
-            self.current_url = self.url_input_text.text
-            self.url_has_changed = False
-            self.player.setup(self.current_url)
-        if self.current_url:
+            _log("CHANGED")
+            if self.current_url:
+                _log("THER IS")
+                self.url_has_changed = False
+                self.player.setup(self.current_url)
+            self.player.play()
+            self.update_track_info()
+        else:
             self.player.play()
             self.update_track_info()
 
@@ -247,10 +296,14 @@ class MyView(arcade.View):
         else:
             self.play_button.disabled = False
             self.pause_button.disabled = True
-        if hasattr(self.player, "media_player"):
+        if hasattr(self.player, "media_player") and self.player.media_player:
             self.next_button.disabled = False
         else:
             self.next_button.disabled = True
+            if self.url_input_text.text:
+                self.play_button.disabled = False
+            else:
+                self.play_button.disabled = True
 
         if self.player.get_volume() == 1.0:
             self.vol_up_button.disabled = True
@@ -286,17 +339,18 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            # WHY[0]: remove self.grid so focus can be set again on it
-            self.focus_set.pop(self.grid, None)
+            # WHY[0]: remove self.first_grid so focus can be set again on it
+            self.focus_set.pop(self.url_label, None)
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
                         t = get_clipboad_content()
                         _log("From clipboard", t)
                         self.current_url = t
+                        self.url_has_changed = True
                 case arcade.key.TAB:
                     # WHY[0]: just another widget not the text field
-                    self._set_focus_on_widget(self.grid)
+                    self._set_focus_on_widget(self.url_label)
                 case arcade.key.ENTER:
                     self.play_button.on_click()
                     # don't know how to avoid \n to be added so we remove them
@@ -305,6 +359,7 @@ class MyView(arcade.View):
                     )
                 case _:
                     self.current_url = self.url_input_text.text
+                    self.url_has_changed = True
             return arcade.pyglet.event.EVENT_HANDLED
 
         match key:
@@ -391,18 +446,10 @@ class MyView(arcade.View):
 
 
 def main(fullscreen=False, skip_downloaded=False):
-    # assets scale is 1 for screen resolution 1920x1080 from wich we
-    # take the smaller value.
     screen_width, screen_height = arcade.get_display_size()
-    # reduce screen dimentions to 80% an then make the screen
-    # dimensions a square the size of the smaller side
     screen_width = int(screen_width * 0.8)
     screen_height = int(screen_height * 0.8)
-    if screen_height > screen_width:
-        screen_height = screen_width
-    else:
-        screen_width = screen_height
-    # calculate scale using user screen size
+    # assets scale is 1 for screen resolution 1920x1080
     scale = 1 / (1080 / screen_width)
     window = arcade.Window(
         screen_width,

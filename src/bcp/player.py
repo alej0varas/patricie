@@ -18,6 +18,7 @@ class Player:
         self._handler_music_over = handler_music_over
         self.skip_downloaded = skip_downloaded
         self.playing = False
+        self.threads = list()
 
     def setup(self, url):
         self.media_player = None
@@ -34,6 +35,8 @@ class Player:
         if not self.media_player:
             try:
                 self.track, downloaded = self.mp3s_iterator.__next__()
+            except ValueError:
+                self.next()
             except StopIteration as e:
                 _log("Finished iterating tracks because reason")
                 _log(e)
@@ -121,6 +124,7 @@ class Player:
         if self.playing:
             self.fade_out()
             self.my_music.stop(self.media_player)
+        print(self.threads)
 
     def fade_out(self, duration=1.0):
         if self.media_player:

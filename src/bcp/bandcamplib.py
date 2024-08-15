@@ -1,7 +1,6 @@
 import json
 import os
-import time
-from datetime import datetime
+
 from urllib.parse import urlparse
 
 import dotenv
@@ -10,12 +9,12 @@ from platformdirs import user_data_dir
 from slugify import slugify
 
 from .log import get_loger
-from .utils import Session
+from . import utils
 
 dotenv.load_dotenv()
 _log = get_loger(__name__)
 
-THROTTLE_TIME = 5
+
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 
 # Suppress AlsoFT messages because they bother me
@@ -27,9 +26,8 @@ _tracks_dir = os.path.join(_user_data_dir, "tracks")
 _log("Traks directory:", _tracks_dir)
 _environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
 _cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment + ".sqlite")
-_session = Session(_cache_name)
+_session = utils.Session(_cache_name)
 _log("Cache path:", _session.cache.cache_name)
-_prev_call_time = datetime(year=2000, month=1, day=1)
 
 
 def get_mp3s_from_url(url, track=None):
@@ -114,24 +112,18 @@ def _get_mp3_from_url(url):
 def _fetch_url_content(url):
     if not _session.cache.contains(url=url):
         _log("Url not cached", url)
-        _throttle()
+        utils.throttle()
     else:
         _log("Url cached", url)
     try:
         _log("Request get:", url)
-        return _session.get(url).content
+        content = _session.get(url).content
     except Exception as e:
         raise StopIteration(f"Error getting url {e}")
-
-
-def _throttle():
-    global _prev_call_time
-    _time_diff = (datetime.now() - _prev_call_time).total_seconds()
-    if _time_diff < THROTTLE_TIME:
-        _throttle_for = THROTTLE_TIME - _time_diff
-        _log("Throttle start:", _throttle_for)
-        time.sleep(_throttle_for)
-    _prev_call_time = datetime.now()
+    else:
+        if not content:
+            raise ValueError("The url can't be fetched or the response is invalid")
+    return content
 
 
 def _get_mp3_path(info):

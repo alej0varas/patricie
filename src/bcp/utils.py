@@ -1,3 +1,5 @@
+from urllib.error import HTTPError
+import time
 import http.client
 import sqlite3
 import ssl
@@ -6,9 +8,12 @@ import urllib.request
 from contextlib import contextmanager
 from tkinter import Tk
 
+from datetime import datetime
 from .log import get_loger
 
 _log = get_loger(__name__)
+THROTTLE_TIME = 5
+_prev_call_time = datetime(year=2000, month=1, day=1)
 
 
 def get_clipboad_content():
@@ -19,10 +24,24 @@ def get_clipboad_content():
     return t
 
 
+def throttle():
+    global _prev_call_time
+    _time_diff = (datetime.now() - _prev_call_time).total_seconds()
+    if _time_diff < THROTTLE_TIME:
+        _throttle_for = THROTTLE_TIME - _time_diff
+        _log("Throttle start:", _throttle_for)
+        time.sleep(_throttle_for)
+    _prev_call_time = datetime.now()
+
+
 def threaded(func):
     def wrapper(*args, **kwargs):
-        t = threading.Thread(target=func, args=args, kwargs=kwargs)
-        t.start()
+        def target():
+            func(*args, **kwargs)
+
+        thread = threading.Thread(target=target)
+        thread.start()
+        args[0].threads.append(thread)
 
     return wrapper
 
@@ -45,12 +64,18 @@ class Session:
         return self
 
     def _fetch(self, url):
+        throttle()
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
         succes = False
         while not succes:
             try:
                 with urllib.request.urlopen(url, context=context) as f:
                     content = f.read()
+            except HTTPError as e:
+                _log(f"failed to get url: {url}")
+                _log(f"error: {e.status}")
+                if e.status == 410:
+                    return None
             except http.client.IncompleteRead as e:
                 _log(f"failed to get url: {url}")
                 _log(f"error: {e}")
