@@ -14,11 +14,12 @@ class Player:
     VOLUME_DELTA = 0.1
     VOLUME_DELTA_SMALL = 0.01
 
-    def __init__(self, handler_music_over, skip_downloaded=False):
+    def __init__(self, handler_music_over, skip_cached=False):
         self._handler_music_over = handler_music_over
-        self.skip_downloaded = skip_downloaded
+        self.skip_cached = skip_cached
         self.playing = False
         self.threads = list()
+        self.is_setup = False
 
     def setup(self, url):
         self.media_player = None
@@ -27,37 +28,43 @@ class Player:
         self.user_volume = 100
         self.mp3s_iterator = None
         self.mp3s_iterator = bandcamplib.get_mp3s_from_url(url)
+        self.is_setup = True
+        self.current_url = url
+
+    def get_media_player(self):
+        try:
+            self.track, cached = self.mp3s_iterator.__next__()
+        except ValueError as e:
+            _log("Could not get next song", e)
+            return
+        except StopIteration as e:
+            _log("Finished iterating tracks because reason", e)
+            return
+        self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
+        self.media_player = self.current_sound.play(volume=0)
+        self.media_player.pause()
+        try:
+            self.media_player.pop_handlers()
+        except Exception as e:
+            _log("Unable to pop handler", e)
+        self.media_player.push_handlers(on_eos=self._handler_music_over)
+        return cached
 
     @threaded
-    def play(self):
-        if self.do_stop:
-            return
+    def play(self, url=None):
+        if not self.is_setup and url is not None:
+            self.setup(url)
+        skip = False
         if not self.media_player:
-            try:
-                self.track, downloaded = self.mp3s_iterator.__next__()
-            except ValueError:
-                self.next()
-            except StopIteration as e:
-                _log("Finished iterating tracks because reason")
-                _log(e)
-                return
-            if self.skip_downloaded and downloaded:
-                _log("Skip song:", self.track["title"])
-                self.play()
-                return
-            self.my_music = arcade.load_sound(self.track["path"], streaming=True)
-            self.media_player = self.my_music.play(volume=0)
-            self.fade_in()
-            try:
-                self.media_player.pop_handlers()
-            except Exception:
-                pass
-            self.media_player.push_handlers(on_eos=self._handler_music_over)
-            self.playing = True
-        else:
-            self.media_player.play()
-            self.fade_in(0.5)
-            self.playing = True
+            skip = self.get_media_player()
+        if self.skip_cached and skip:
+            _log("Skipping song")
+            self.media_player = None
+            self.play()
+            return
+        self.media_player.play()
+        self.fade_in(0.5)
+        self.playing = True
 
     @threaded
     def pause(self):
@@ -68,14 +75,12 @@ class Player:
 
     @threaded
     def next(self):
-        if not self.media_player:
-            return
         self.playing = False
         self.fade_out(0.25)
         try:
-            self.my_music.stop(self.media_player)
-        except AttributeError:
-            pass
+            self.current_sound.stop(self.media_player)
+        except AttributeError as e:
+            _log("Error stopping song", e)
         self.media_player = None
         self.play()
 
@@ -83,7 +88,8 @@ class Player:
     def fade_in(self, duration=1.0):
         if self.media_player:
             new_vol = (
-                self.my_music.get_volume(self.media_player) + Player.VOLUME_DELTA_SMALL
+                self.current_sound.get_volume(self.media_player)
+                + Player.VOLUME_DELTA_SMALL
             )
             for i in range(100):
                 if new_vol > 1:
@@ -97,7 +103,7 @@ class Player:
     @threaded
     def volume_up(self, value=VOLUME_DELTA):
         if self.media_player:
-            new_vol = self.my_music.get_volume(self.media_player) + value
+            new_vol = self.current_sound.get_volume(self.media_player) + value
             if new_vol > 1.0:
                 new_vol = 1
             self.volume_set(new_vol)
@@ -105,7 +111,7 @@ class Player:
     @threaded
     def volume_down(self, value=VOLUME_DELTA):
         if self.media_player:
-            new_vol = self.my_music.get_volume(self.media_player) - value
+            new_vol = self.current_sound.get_volume(self.media_player) - value
             if new_vol < 0.0:
                 new_vol = 0.0
             self.volume_set(new_vol)
@@ -113,7 +119,7 @@ class Player:
     def volume_set(self, value, set_user_volume=True):
         if self.media_player:
             try:
-                self.my_music.set_volume(value, self.media_player)
+                self.current_sound.set_volume(value, self.media_player)
             except AttributeError:
                 pass
             if set_user_volume:
@@ -123,13 +129,14 @@ class Player:
         self.do_stop = True
         if self.playing:
             self.fade_out()
-            self.my_music.stop(self.media_player)
+            self.current_sound.stop(self.media_player)
         print(self.threads)
 
     def fade_out(self, duration=1.0):
         if self.media_player:
             new_vol = (
-                self.my_music.get_volume(self.media_player) - Player.VOLUME_DELTA_SMALL
+                self.current_sound.get_volume(self.media_player)
+                - Player.VOLUME_DELTA_SMALL
             )
             for volume in range(100):
                 if new_vol < 0.0:
@@ -140,13 +147,13 @@ class Player:
 
     def get_volume(self):
         if self.playing and self.media_player:
-            return self.my_music.get_volume(self.media_player)
+            return self.current_sound.get_volume(self.media_player)
         return 0.5
 
     def get_position(self):
         result = 0
         if self.playing and self.media_player:
-            result = self.my_music.get_stream_position(self.media_player)
+            result = self.current_sound.get_stream_position(self.media_player)
         return result
 
     def get_duration(self):

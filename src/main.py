@@ -21,10 +21,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-s",
-        "--skip-downloaded",
+        "--skip-cached",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Skip songs that have already been downloaded. Default is true",
+        help="Skip songs that are cached. Default is true",
     )
     parser.add_argument(
         "-f",
@@ -34,4 +34,4 @@ if __name__ == "__main__":
         help="Use fullscreen. Default is false",
     )
     args = parser.parse_args()
-    main(fullscreen=args.fullscreen, skip_downloaded=args.skip_downloaded)
+    main(fullscreen=args.fullscreen, skip_cached=args.skip_cached)
