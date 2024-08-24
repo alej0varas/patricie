@@ -1,5 +1,6 @@
 from . import bandcamplib
 
+
 class Player:
     def __init__(self, music_over_handler, skip_downloaded):
         self.playing = False
@@ -11,5 +12,8 @@ class Player:
         self.band = bandcamplib.load_band(url)
         return self.band
 
-    def load_album(self, url):
-        pass
+    def load_album(self, title):
+        tracks = bandcamplib.load_album(
+            self.band["url"] + self.band["albums"][title]["url"]
+        )
+        self.band["albums"][title]["tracks"] = tracks

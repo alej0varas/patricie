@@ -4,17 +4,18 @@ from datetime import timedelta
 
 import arcade
 
-from . import __VERSION__, textures
-from .log import get_loger
-from .player import Player
-from .utils import get_clipboad_content, threaded
+from .. import __VERSION__
+from . import textures
+from ..log import get_loger
+from ..player import Player
+from ..utils import get_clipboad_content, threaded
 
 _log = get_loger(__name__)
 
 
 class MainView(arcade.View):
     # fmt: off
-    def __init__(self, screen_width, screen_height, scale, skip_downloaded=False, url=None):
+    def __init__(self, screen_width, screen_height, scale, skip_downloaded=False, url=""):
         super().__init__()
         # Calculate elements' dimentions based on screen size.
         font_size_url_label = screen_height // 55
@@ -53,7 +54,7 @@ class MainView(arcade.View):
         self.url_input_text = arcade.gui.UIInputText(texture=bg_tex, font_size=font_size_url_input_text)
         # May be not the same issue but cursor doesn't blink if text is not set. Adding text and then removing text from input makes cursor blink. https://github.com/pythonarcade/arcade/issues/1059
         self.url_input_text.text = " "
-        self.url_input_text.text = ""
+        self.url_input_text.text = url
         self.load_band_button = arcade.gui.widgets.buttons.UITextureButton(scale=scale, texture=textures._play_normal_texture, texture_hovered=textures._play_hover_texture, texture_pressed=textures._play_press_texture, texture_disabled=textures._play_disable_texture)
         self.load_band_button.on_click = self.on_click_load_band
 
@@ -86,20 +87,30 @@ class MainView(arcade.View):
         _button_height = 30
         self.third_grid = arcade.gui.UIGridLayout(column_count=2, row_count=1, horizontal_spacing=1, vertical_spacing=1)
 
-        def _callback_album(event):
-            print(self.albums.get(event.action))
-        self.albums_row = arcade.gui.constructs.UIButtonRow(vertical=True, callback=_callback_album, space_between=1)
-        self.albums = dict([(f"album {i}", i) for i in range(10)])
-        for k, v in self.albums.items():
-            self.albums_row.add_button(k, height=_button_height)
+        def handle_album_button_on_click(event):
+            title = event.source.text
+            self.player.load_album(title)
+            for track, track_button in zip(self.player.band['albums'][title]['tracks'], self.tracks_row._children):
+                track_button.child.text = track['title']
+
+        self.albums_row = arcade.gui.widgets.layout.UIBoxLayout(vertical=True, space_between=1)
+
+        for i in range(0, 10):
+            b = arcade.gui.widgets.buttons.UIFlatButton(text=str(i), height=_button_height)
+            b.on_click = handle_album_button_on_click
+            self.albums_row.add(b)
         self.third_grid.add(col_num=0, row_num=0, child=self.albums_row)
 
-        def _callback_track(event):
-            print(self.tracks.get(event.action))
-        self.tracks_row = arcade.gui.constructs.UIButtonRow(vertical=True, callback=_callback_track, space_between=1)
-        self.tracks = dict([(f"track {i}", i) for i in range(10)])
-        for k, v in self.tracks.items():
-            self.tracks_row.add_button(k, height=_button_height)
+        def handle_track_button_on_click(event):
+            _log('handle track button', event.source.text)
+
+        self.tracks_row = arcade.gui.widgets.layout.UIBoxLayout(vertical=True, space_between=1)
+
+        for i in range(0, 10):
+            b = arcade.gui.widgets.buttons.UIFlatButton(text=str(i), height=_button_height)
+            b.on_click = handle_track_button_on_click
+            self.tracks_row.add(b)
+
         self.third_grid.add(col_num=1, row_num=0, child=self.tracks_row)
 
         third_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
@@ -159,13 +170,6 @@ class MainView(arcade.View):
         #
         # Setup
         #
-
-        self.url_has_changed = False
-        self._current_url = url
-        self.url_input_text.text = url
-        if self._current_url:
-            self.url_has_changed = True
-
         self.player = Player(self.handler_music_over, skip_downloaded)
         self.keys_held = dict()
         self.focus_set = dict()
@@ -173,28 +177,14 @@ class MainView(arcade.View):
         # fmt: on
 
     def on_click_load_band(self, *_):
-        if self.url_has_changed:
-            self.current_url = self.url_input_text.text
-            self.url_has_changed = False
-            self.band = self.player.load_band(self.current_url)
-            for a in self.band["albums"]:
-                print(a["title"])
-            # self.albums = self.player.load_album(self.band["albums"][0]["page_url"])
-            # self.tracks = self.album["tracks"]
-            # self.player.play(self.tracks[0])
+        self.current_url = self.url_input_text.text
+        self.player.load_band(self.current_url)
+        for album, album_button in zip(self.player.band["albums"].values(), self.albums_row._children):
+            album_button.child.text = album['title']
 
     def on_click_play(self, *_):
-        if self.url_has_changed:
-            self.current_url = self.url_input_text.text
-            self.url_has_changed = False
-            self.band = self.player.load_band(self.current_url)
-            self.album = self.player.load_album(self.band["albums"][0]["page_url"])
-            self.tracks = self.album["tracks"]
-            self.player.play(self.tracks[0])
-
-        if self.current_url:
-            self.player.play()
-            self.update_track_info()
+        self.player.play()
+        self.update_track_info()
 
     @threaded
     def update_track_info(self):

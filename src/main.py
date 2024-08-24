@@ -19,6 +19,8 @@ from bcp.gui import main  # noqa: E402
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("url", type=str, help="Optional band url")
+
     parser.add_argument(
         "-s",
         "--skip-downloaded",
@@ -34,4 +36,4 @@ if __name__ == "__main__":
         help="Use fullscreen. Default is false",
     )
     args = parser.parse_args()
-    main(fullscreen=args.fullscreen, skip_downloaded=args.skip_downloaded)
+    main(fullscreen=args.fullscreen, url=args.url, skip_downloaded=args.skip_downloaded)

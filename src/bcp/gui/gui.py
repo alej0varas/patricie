@@ -1,7 +1,7 @@
 import arcade.gui
 
-from . import __VERSION__
-from .log import get_loger
+from .. import __VERSION__
+from ..log import get_loger
 from .views import MainView
 
 _log = get_loger(__name__)
@@ -11,7 +11,7 @@ DEFAULT_LINE_HEIGHT = 45
 SCREEN_TITLE = f"Patricie Player {__VERSION__}"
 
 
-def main(url=None, fullscreen=False, skip_downloaded=False):
+def main(url="", fullscreen=False, skip_downloaded=False):
     # assets scale is 1 for screen resolution 1920x1080 from wich we
     # take the smaller value.
     screen_width, screen_height = arcade.get_display_size()
@@ -32,7 +32,5 @@ def main(url=None, fullscreen=False, skip_downloaded=False):
         fullscreen=fullscreen,
         center_window=True,
     )
-    window.show_view(
-        MainView(screen_width, screen_height, scale, skip_downloaded, url=url)
-    )
+    window.show_view(MainView(screen_width, screen_height, scale, skip_downloaded, url))
     window.run()

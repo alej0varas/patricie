@@ -52,7 +52,7 @@ def extract_band_info(html):
 def get_albums_info(html, artist):
     soup = BeautifulSoup(html, "html.parser")
     ol_tag = soup.find("ol", id="music-grid")
-    r = list()
+    r = dict()
     # if ol_tag is None:
     #    return list()
     data_items = ol_tag.get("data-client-items")
@@ -67,15 +67,14 @@ def get_albums_info(html, artist):
                 _artist = li.find("span").text.strip()
             else:
                 _artist = artist
-            r.append(
-                {
-                    "artist": _artist,
-                    "band_id": int(li["data-band-id"]),
-                    "id": int(li["data-item-id"].split("-")[1]),
-                    "page_url": li.find("a")["href"],
-                    "title": li.find("p").contents[0].strip(),
-                }
-            )
+            title = li.find("p").contents[0].strip()
+            r[title] = {
+                "artist": _artist,
+                "band_id": int(li["data-band-id"]),
+                "id": int(li["data-item-id"].split("-")[1]),
+                "url": li.find("a")["href"],
+                "title": title,
+            }
     return r
 
 
@@ -86,29 +85,27 @@ def load_album(url):
 
 def fetch_album_info(url):
     html = _session.get(url).content
-    album = extract_album_info(html)
-    print(album)
+    # album = extract_album_info(html)
     tracks = _get_tracks_from_html(html)
+    # _log(tracks)
     # mp3_path, cached = _get_mp3_path(track)
-    parsed_url = urlparse(url)
-    artist_slug = parsed_url.netloc.split(".")[0]
-    album_slug = parsed_url.path.split("/")[2]
-    for track in tracks:
-        track["path"], cached = _get_mp3_path(
-            track["title"], artist_slug, album_slug, track["mp3_url"]
-        )
-    r = {
-        "name": album["title"],
-        "tracks": tracks,
-    }
-    return r
+    # parsed_url = urlparse(url)
+    # artist_slug = parsed_url.netloc.split(".")[0]
+    # album_slug = parsed_url.path.split("/")[2]
+    # for track in tracks:
+    #     track["path"], cached = _get_mp3_path(
+    #         track["title"], artist_slug, album_slug, track["mp3_url"]
+    #     )
+    return tracks
 
 
 def extract_album_info(html):
     soup = BeautifulSoup(html, "html.parser")
     for s in soup.find_all("script"):
         if s.get("data-tralbum"):
-            return json.loads(s["data-tralbum"])["current"]
+            d = json.loads(s["data-tralbum"])
+            r = {"title": d["current"]["title"], "url": d["url"]}
+            return r
 
 
 def _get_tracks_from_html(html):
