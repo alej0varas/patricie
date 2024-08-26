@@ -90,8 +90,8 @@ class MainView(arcade.View):
         def handle_album_button_on_click(event):
             title = event.source.text
             self.player.load_album(title)
-            for track, track_button in zip(self.player.band['albums'][title]['tracks'], self.tracks_row._children):
-                track_button.child.text = track['title']
+            for track, track_button in zip(self.player.band['albums'][title]['tracks'].keys(), self.tracks_row._children):
+                track_button.child.text = track
 
         self.albums_row = arcade.gui.widgets.layout.UIBoxLayout(vertical=True, space_between=1)
 
@@ -103,6 +103,7 @@ class MainView(arcade.View):
 
         def handle_track_button_on_click(event):
             _log('handle track button', event.source.text)
+            self.player.play(event.source.text)
 
         self.tracks_row = arcade.gui.widgets.layout.UIBoxLayout(vertical=True, space_between=1)
 
@@ -173,29 +174,21 @@ class MainView(arcade.View):
         self.player = Player(self.handler_music_over, skip_downloaded)
         self.keys_held = dict()
         self.focus_set = dict()
-        self.current_track_info = None
         # fmt: on
 
     def on_click_load_band(self, *_):
         self.current_url = self.url_input_text.text
         self.player.load_band(self.current_url)
-        for album, album_button in zip(self.player.band["albums"].values(), self.albums_row._children):
-            album_button.child.text = album['title']
+        for album, album_button in zip(self.player.band["albums"].keys(), self.albums_row._children):
+            album_button.child.text = album
 
     def on_click_play(self, *_):
         self.player.play()
-        self.update_track_info()
 
     @threaded
     def update_track_info(self):
         while not self.player.playing:
             time.sleep(0.1)
-        self.current_track_info = {
-            "title": self.player.get_title(),
-            "album": self.player.get_album(),
-            "artist": self.player.get_artist(),
-            "duration": self.player.get_duration(),
-        }
 
     def play_update_gui(self):
         if self.player.playing:
@@ -298,24 +291,22 @@ class MainView(arcade.View):
         self.clear()
         self.play_update_gui()
 
-        if self.current_track_info:
-            self.text_track_title.text = self.current_track_info["title"]
-            self.text_track_album.text = self.current_track_info["album"]
-            self.text_track_artist.text = self.current_track_info["artist"]
+        self.text_track_title.text = self.player.track.get("title")
+        self.text_track_album.text = self.player.album.get("title")
+        self.text_track_artist.text = self.player.band.get("name")
 
-            if self.player.playing:
-                _time = self.player.get_position()
-                milliseconds = int((_time % 1) * 100)
-                pos_string = "{}.{:02d}".format(
-                    str(timedelta(seconds=int(_time)))[2:], milliseconds
-                )
-                _time = self.current_track_info["duration"]
-                milliseconds = int((_time % 1) * 100)
-                dur_string = "{}.{:02d}".format(
-                    str(timedelta(seconds=int(_time)))[2:], milliseconds
-                )
-                time_string = pos_string + " / " + dur_string
-                self.text_time.text = time_string
+        _time = self.player.get_track_position()
+        milliseconds = int((_time % 1) * 100)
+        pos_string = "{}.{:02d}".format(
+            str(timedelta(seconds=int(_time)))[2:], milliseconds
+        )
+        _time = self.player.track.get("duration", 0)
+        milliseconds = int((_time % 1) * 100)
+        dur_string = "{}.{:02d}".format(
+            str(timedelta(seconds=int(_time)))[2:], milliseconds
+        )
+        time_string = pos_string + " / " + dur_string
+        self.text_time.text = time_string
 
         self.ui.draw()
 

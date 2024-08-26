@@ -16,25 +16,15 @@ dotenv.load_dotenv()
 _log = get_loger(__name__)
 
 
-def load_band(url):
-    url_valid = validate_url(url)
-    r = fetch_band_info(url_valid)
-    return r
-
-
 def validate_url(url):
     return url
 
 
-def fetch_band_info(url):
-    html = _session.get(url).content
-    r = extract_band_info(html)
-    return r
-
-
-def extract_band_info(html):
+def load_band(url):
+    url_valid = validate_url(url)
+    html = _session.get(url_valid).content
     soup = BeautifulSoup(html, "html.parser")
-    url = soup.find("meta", property="og:url")["content"]
+    band_url = soup.find("meta", property="og:url")["content"]
     name = soup.find("meta", property="og:title")["content"]
     for s in soup.find_all("script"):
         if s.get("data-tralbum"):
@@ -42,70 +32,54 @@ def extract_band_info(html):
             break
     r = {
         "name": name,
-        "url": url,
+        "url": band_url,
         "url_discography": url_d,
-        "albums": get_albums_info(html, name),
     }
+
+    r["albums"] = _get_albums(soup)
+
     return r
 
 
-def get_albums_info(html, artist):
-    soup = BeautifulSoup(html, "html.parser")
+def _get_albums(soup):
     ol_tag = soup.find("ol", id="music-grid")
-    r = dict()
-    # if ol_tag is None:
-    #    return list()
-    data_items = ol_tag.get("data-client-items")
-    if data_items:
-        for item in json.loads(ol_tag["data-client-items"]):
-            item.pop("art_id")
-            item.pop("type")
-            r.append(item)
+    if ol_tag is None:
+        return list()
+    albums = dict()
+    if ol_tag.get("data-client-items"):
+        _log("Album URLs obtained from data attribute")
+        for i in json.loads(ol_tag["data-client-items"]):
+            albums[i["title"]] = {"url": i["page_url"]}
     else:
+        _log("Album URLs obtained from li href")
         for li in ol_tag.find_all("li"):
-            if li.find("span"):
-                _artist = li.find("span").text.strip()
-            else:
-                _artist = artist
-            title = li.find("p").contents[0].strip()
-            r[title] = {
-                "artist": _artist,
-                "band_id": int(li["data-band-id"]),
-                "id": int(li["data-item-id"].split("-")[1]),
-                "url": li.find("a")["href"],
-                "title": title,
-            }
-    return r
+            albums[li.find("p").text.strip()] = {"url": li.find("a")["href"]}
+    _log("Lodaded items count:", len(albums))
+    return albums
 
 
 def load_album(url):
-    r = fetch_album_info(url)
-    return r
-
-
-def fetch_album_info(url):
     html = _session.get(url).content
-    # album = extract_album_info(html)
-    tracks = _get_tracks_from_html(html)
-    # _log(tracks)
-    # mp3_path, cached = _get_mp3_path(track)
-    # parsed_url = urlparse(url)
-    # artist_slug = parsed_url.netloc.split(".")[0]
-    # album_slug = parsed_url.path.split("/")[2]
-    # for track in tracks:
-    #     track["path"], cached = _get_mp3_path(
-    #         track["title"], artist_slug, album_slug, track["mp3_url"]
-    #     )
-    return tracks
-
-
-def extract_album_info(html):
     soup = BeautifulSoup(html, "html.parser")
     for s in soup.find_all("script"):
         if s.get("data-tralbum"):
             d = json.loads(s["data-tralbum"])
-            r = {"title": d["current"]["title"], "url": d["url"]}
-            return r
+            album = {"title": d["current"]["title"], "url": d["url"]}
+            break
+    tracks = dict()
+    for t in d["trackinfo"]:
+        tracks[t["title"]] = {
+            "mp3_url": t["file"]["mp3-128"],
+            "title": t["title"],
+            "track_num": t["track_num"],
+            "duration": t["track_num"],
+            "url": t["title_link"],
+            "artist": d["artist"],
+            "album": album["title"],
+        }
+
+    album["tracks"] = tracks
+    return album
 
 
 def _get_tracks_from_html(html):
@@ -116,28 +90,34 @@ def _get_tracks_from_html(html):
             for track in json.loads(script["data-tralbum"])["trackinfo"]:
                 if track["id"] and track["file"]:
                     info = {
-                        "mp3_url": track["file"]["mp3-128"],
+                        "url": track["page_url"],
                         "title": track["title"],
-                        "duration": track["duration"],
                     }
                     tracks.append(info)
+            break
     return tracks
 
 
-def _get_mp3_path(title, artist_slug, album_slug, url):
-    album_path = os.path.join(_tracks_dir, artist_slug, album_slug)
-    title = slugify(title)
-    mp3_path = os.path.join(album_path, title + ".mp3")
-    if os.path.exists(os.path.join(album_path, title + ".mp3")):
+def get_mp3_path(track):
+    artist_path, album_path, track_path = _get_track_paths(track)
+    if os.path.exists(track_path):
         cached = True
-        _log("File exists:", mp3_path)
+        _log("File exists:", track_path)
     else:
         cached = False
+        _log("File doesn't exists:", track_path)
         if not os.path.isdir(album_path):
             os.makedirs(album_path)
-        mp3_content = _get_mp3_from_url(url)
-        _write_mp3(mp3_content, mp3_path)
-    return mp3_path, cached
+        mp3_content = _get_mp3_from_url(track["mp3_url"])
+        _write_mp3(mp3_content, track_path)
+    return track_path, cached
+
+
+def _get_track_paths(track):
+    artist_path = os.path.join(_tracks_dir, slugify(track["artist"]))
+    album_path = os.path.join(artist_path, slugify(track["album"]))
+    track_path = os.path.join(album_path, slugify(track["title"]) + ".mp3")
+    return artist_path, album_path, track_path
 
 
 def _write_mp3(mp3_content, mp3_path):
@@ -162,31 +142,6 @@ _cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment + ".s
 _session = Session(_cache_name)
 _log("Cache path:", _session.cache.cache_name)
 _prev_call_time = datetime(year=2000, month=1, day=1)
-
-
-def get_mp3s_from_url(url, track=None):
-    # For supported urls see readme.
-    assert _validate_url(url)
-    url_type = _get_url_type(url)
-    if not url_type:
-        url_type = "music"
-        url += "/" + url_type
-    if url_type == "music":
-        albums_urls = _get_albums_urls_from_url(url)
-        for album_url in albums_urls:
-            yield from get_mp3s_from_url(album_url)
-
-
-def _get_albums_urls_from_url(url):
-    albums_urls = list()
-    music_html = _fetch_url_content(url)
-    albums_urls_path = _get_albums_urls_from_html(music_html)
-
-    parsed_url = urlparse(url)
-    for album_url_path in albums_urls_path:
-        album_url = parsed_url._replace(path=album_url_path).geturl()
-        albums_urls.append(album_url)
-    return albums_urls
 
 
 def _get_mp3_from_url(url):
