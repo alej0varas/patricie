@@ -27,7 +27,7 @@ class Player:
 
     def load_album(self, title):
         album = bandcamplib.load_album(
-            self.band["url"] + self.band["albums"][title]["url"]
+            self.band["albums"][title]["url"], self.band["url"]
         )
         self.band["albums"][title] = album
         self.album = self.band["albums"][title]

@@ -90,7 +90,7 @@ class MainView(arcade.View):
         def handle_album_button_on_click(event):
             title = event.source.text
             self.player.load_album(title)
-            for track, track_button in zip(self.player.band['albums'][title]['tracks'].keys(), self.tracks_row._children):
+            for track, track_button in zip(self.player.band['albums'][title]['tracks'], self.tracks_row._children):
                 track_button.child.text = track
 
         self.albums_row = arcade.gui.widgets.layout.UIBoxLayout(vertical=True, space_between=1)
@@ -122,9 +122,9 @@ class MainView(arcade.View):
         self.text_track_title = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_title, align="center")
         self.text_track_album = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_album, align="center")
         self.text_track_artist = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_track_artist, align="center")
-        self.text_time = arcade.gui.UILabel(" ",text_color=arcade.color.BLACK,font_size=font_size_time,align="center")
+        self.text_time = arcade.gui.UILabel(" ", text_color=arcade.color.BLACK, font_size=font_size_time, align="center")
 
-        self.track_info_grid = arcade.gui.UIGridLayout(column_count=1,row_count=4,horizontal_spacing=20,vertical_spacing=20)
+        self.track_info_grid = arcade.gui.UIGridLayout(column_count=1, row_count=4, horizontal_spacing=20, vertical_spacing=20)
         self.track_info_grid.add(col_num=0, row_num=0, child=self.text_track_title)
         self.track_info_grid.add(col_num=0, row_num=1, child=self.text_track_album)
         self.track_info_grid.add(col_num=0, row_num=2, child=self.text_track_artist)
@@ -179,7 +179,7 @@ class MainView(arcade.View):
     def on_click_load_band(self, *_):
         self.current_url = self.url_input_text.text
         self.player.load_band(self.current_url)
-        for album, album_button in zip(self.player.band["albums"].keys(), self.albums_row._children):
+        for album, album_button in zip(self.player.band["albums"], self.albums_row._children):
             album_button.child.text = album
 
     def on_click_play(self, *_):

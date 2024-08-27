@@ -16,6 +16,12 @@ dotenv.load_dotenv()
 _log = get_loger(__name__)
 
 
+def _build_canonical_url(band_url, url):
+    if band_url in url:
+        return url
+    return band_url + url
+
+
 def validate_url(url):
     return url
 
@@ -35,36 +41,41 @@ def load_band(url):
         "url": band_url,
         "url_discography": url_d,
     }
-
-    r["albums"] = _get_albums(soup)
-
+    r["albums"] = _get_albums(soup, band_url)
     return r
 
 
-def _get_albums(soup):
+def _get_albums(soup, band_url):
     ol_tag = soup.find("ol", id="music-grid")
     if ol_tag is None:
         return list()
+    _albums = list()
     albums = dict()
     if ol_tag.get("data-client-items"):
         _log("Album URLs obtained from data attribute")
         for i in json.loads(ol_tag["data-client-items"]):
-            albums[i["title"]] = {"url": i["page_url"]}
+            _albums.append((i["title"], i["page_url"])),
     else:
         _log("Album URLs obtained from li href")
         for li in ol_tag.find_all("li"):
-            albums[li.find("p").text.strip()] = {"url": li.find("a")["href"]}
+            _albums.append((li.find("p").text.strip(), li.find("a")["href"])),
+    for t, u in _albums:
+        albums[t] = {"title": t, "url": _build_canonical_url(band_url, u)}
+
     _log("Lodaded items count:", len(albums))
     return albums
 
 
-def load_album(url):
+def load_album(url, band_url):
     html = _session.get(url).content
     soup = BeautifulSoup(html, "html.parser")
     for s in soup.find_all("script"):
         if s.get("data-tralbum"):
             d = json.loads(s["data-tralbum"])
-            album = {"title": d["current"]["title"], "url": d["url"]}
+            album = {
+                "title": d["current"]["title"],
+                "url": _build_canonical_url(band_url, d["url"]),
+            }
             break
     tracks = dict()
     for t in d["trackinfo"]:
@@ -73,29 +84,13 @@ def load_album(url):
             "title": t["title"],
             "track_num": t["track_num"],
             "duration": t["track_num"],
-            "url": t["title_link"],
+            "url": _build_canonical_url(band_url, t["title_link"]),
             "artist": d["artist"],
             "album": album["title"],
         }
 
     album["tracks"] = tracks
     return album
-
-
-def _get_tracks_from_html(html):
-    tracks = list()
-    soup = BeautifulSoup(html, "html.parser")
-    for script in soup.find_all("script"):
-        if script.has_attr("data-tralbum"):
-            for track in json.loads(script["data-tralbum"])["trackinfo"]:
-                if track["id"] and track["file"]:
-                    info = {
-                        "url": track["page_url"],
-                        "title": track["title"],
-                    }
-                    tracks.append(info)
-            break
-    return tracks
 
 
 def get_mp3_path(track):
