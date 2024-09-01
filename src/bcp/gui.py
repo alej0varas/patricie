@@ -19,7 +19,7 @@ SCREEN_TITLE = f"Patricie Player {__VERSION__}"
 
 
 class MyView(arcade.View):
-    def __init__(self, screen_width, screen_height, scale, skip_cached=False):
+    def __init__(self, screen_width, screen_height, scale, skip_cached=False, url=""):
         super().__init__()
         self.screen_width, self.screen_height = screen_width, screen_height
         # calculate elements' dimentions based on screen size
@@ -76,6 +76,7 @@ class MyView(arcade.View):
             font_size=font_size_url_input_text,
         )
         self.url_input_text.activate()
+        self.url_input_text.text = url
         self.first_grid.add(self.url_label, col_num=0, row_num=0)
         self.first_grid.add(
             self.url_input_text.with_padding(all=5).with_background(texture=bg_tex),
@@ -253,12 +254,11 @@ class MyView(arcade.View):
         self.focus_set = dict()
         self.current_track_info = None
         self.threads = list()
-        self.current_url = ""
 
     def on_click_play(self, *_):
-        if not self.current_url:
+        if not self.url_input_text.text:
             return
-        self.player.play(self.current_url)
+        self.player.play(self.url_input_text.text)
         self.update_track_info()
 
     @threaded
@@ -324,24 +324,26 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            new_url = False
+            new_url = ""
+            action = None
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
                         new_url = get_clipboad_content()
                         _log("URL from clipboard", new_url)
+                case arcade.key.ENTER:
+                    action = self.play_button.on_click()
+                    new_url = self.url_input_text.text
                 case arcade.key.TAB:
                     self.url_input_text.deactivate()
-                case arcade.key.ENTER:
-                    self.play_button.on_click()
-                    self.url_input_text.text = self.current_url
                 case _:
                     if not modifiers & arcade.key.MOD_CTRL:
                         _log("URL from input", self.url_input_text.text)
                         new_url = self.url_input_text.text
             if new_url:
-                self.current_url = new_url.strip()
-            self.url_input_text.text = self.current_url
+                self.url_input_text.text = new_url.strip()
+            if action:
+                action()
             return arcade.pyglet.event.EVENT_HANDLED
 
         match key:
@@ -402,7 +404,7 @@ class MyView(arcade.View):
         self.ui.draw()
 
 
-def main(fullscreen=False, skip_cached=False):
+def main(url="", fullscreen=False, skip_cached=False):
     screen_width, screen_height = arcade.get_display_size()
     screen_width = int(screen_width * 0.8)
     screen_height = int(screen_height * 0.8)
@@ -415,5 +417,5 @@ def main(fullscreen=False, skip_cached=False):
         fullscreen=fullscreen,
         center_window=True,
     )
-    window.show_view(MyView(screen_width, screen_height, scale, skip_cached))
+    window.show_view(MyView(screen_width, screen_height, scale, skip_cached, url))
     window.run()
