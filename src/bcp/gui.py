@@ -259,18 +259,6 @@ class MyView(arcade.View):
         if not self.url_input_text.text:
             return
         self.player.play(self.url_input_text.text)
-        self.update_track_info()
-
-    @threaded
-    def update_track_info(self):
-        while not self.player.playing:
-            time.sleep(0.1)
-        self.current_track_info = {
-            "title": self.player.get_title(),
-            "album": self.player.get_album(),
-            "artist": self.player.get_artist(),
-            "duration": self.player.get_duration(),
-        }
 
     def play_update_gui(self):
         if not self.player:
@@ -317,7 +305,6 @@ class MyView(arcade.View):
 
     def handler_music_over(self):
         self.player.next()
-        self.update_track_info()
 
     def on_key_press(self, key, modifiers):
         self.keys_held[key] = True
@@ -382,24 +369,18 @@ class MyView(arcade.View):
         self.clear()
         self.play_update_gui()
 
-        if self.current_track_info:
-            self.text_track_title.text = self.current_track_info["title"]
-            self.text_track_album.text = self.current_track_info["album"]
-            self.text_track_artist.text = self.current_track_info["artist"]
+        if self.player.playing:
+            self.text_track_title.text = self.player.get_title()
+            self.text_track_album.text = self.player.get_album()
+            self.text_track_artist.text = self.player.get_artist()
 
-            if self.player.playing:
-                _time = self.player.get_position()
-                milliseconds = int((_time % 1) * 100)
-                pos_string = "{}.{:02d}".format(
-                    str(timedelta(seconds=int(_time)))[2:], milliseconds
-                )
-                _time = self.current_track_info["duration"]
-                milliseconds = int((_time % 1) * 100)
-                dur_string = "{}.{:02d}".format(
-                    str(timedelta(seconds=int(_time)))[2:], milliseconds
-                )
-                time_string = pos_string + " / " + dur_string
-                self.text_time.text = time_string
+            _time = self.player.get_position()
+            template = "{}"
+            pos_string = template.format(str(timedelta(seconds=int(_time)))[2:])
+            _time = self.player.get_duration()
+            dur_string = template.format(str(timedelta(seconds=int(_time)))[2:])
+            time_string = pos_string + " / " + dur_string
+            self.text_time.text = time_string
 
         self.ui.draw()
 

@@ -62,9 +62,10 @@ class Player:
             self.media_player = None
             self.play()
             return
-        self.media_player.play()
-        self.fade_in(0.5)
-        self.playing = True
+        if self.media_player:
+            self.media_player.play()
+            self.fade_in(0.5)
+            self.playing = True
 
     @threaded
     def pause(self):
