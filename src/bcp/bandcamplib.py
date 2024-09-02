@@ -30,33 +30,32 @@ _session = utils.Session(_cache_name)
 _log("Cache path:", _session.cache.cache_name)
 
 
-def get_mp3s_from_url(url, track=None):
-    # For supported urls see readme.
-    assert _validate_url(url)
-    url_type = _get_url_type(url)
-    if not url_type:
-        url_type = "music"
-        url += "/" + url_type
-    if url_type == "music":
-        albums_urls = _get_albums_urls_from_url(url)
-        for album_url in albums_urls:
-            yield from get_mp3s_from_url(album_url)
-    if url_type in ["album", "track"]:
-        html = _fetch_url_content(url)
-        tracks = _get_tracks_from_html(html)
-        for track in tracks:
-            parsed_url = urlparse(url)
-            # FIX: track's url will have an album with the name of the track
-            artist = parsed_url.netloc.split(".")[0]
-            album = parsed_url.path.split("/")[2]
-            track.update({"artist": artist, "album": album, "title": track["title"]})
-            yield from get_mp3s_from_url(
-                track["url"],
-                track,
-            )
-    if url_type == "stream":
-        track["path"], cached = _get_mp3_path(track)
-        yield track, cached
+def get_band(url):
+    r = dict()
+    r["albums_urls"] = _get_albums_urls_from_url(url)
+    return r
+
+
+def get_album(url):
+    r = dict()
+    html = _fetch_url_content(url)
+    tracks = _get_tracks_from_html(html)
+    t = list()
+    for track in tracks:
+        parsed_url = urlparse(url)
+        # FIX: track's url will have an album with the name of the track
+        artist = parsed_url.netloc.split(".")[0]
+        album = parsed_url.path.split("/")[2]
+        track.update({"artist": artist, "album": album, "title": track["title"]})
+        t.append(track)
+    r["tracks"] = t
+    return r
+
+
+def get_mp3(track):
+    track["path"], cached = _get_mp3_path(track)
+    track["cached"] = cached
+    return track
 
 
 def _get_albums_urls_from_url(url):
@@ -79,13 +78,16 @@ def _get_albums_urls_from_html(html):
     hrefs = list()
     if ol_tag.get("data-client-items"):
         _log("Album URLs obtained from data attribute")
-        for i in json.loads(ol_tag["data-client-items"]):
-            hrefs.append(i["page_url"])
+        hrefs = [i["page_url"] for i in json.loads(ol_tag["data-client-items"])]
     else:
         _log("Album URLs obtained from li href")
         hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
-    _log("Lodaded items count:", len(hrefs))
-    return hrefs
+    r = list()
+    for href in hrefs:
+        if href.startswith("/"):
+            r.append(href)
+    _log("Lodaded items count:", len(r))
+    return r
 
 
 def _get_tracks_from_html(html):
@@ -126,9 +128,9 @@ def _fetch_url_content(url):
     return content
 
 
-def _get_mp3_path(info):
-    album_path = os.path.join(_tracks_dir, info["artist"], info["album"])
-    title = slugify(info["title"])
+def _get_mp3_path(track):
+    album_path = os.path.join(_tracks_dir, track["artist"], track["album"])
+    title = slugify(track["title"])
     mp3_path = os.path.join(album_path, title + ".mp3")
     if os.path.exists(os.path.join(album_path, title + ".mp3")):
         cached = True
@@ -137,8 +139,11 @@ def _get_mp3_path(info):
         cached = False
         if not os.path.isdir(album_path):
             os.makedirs(album_path)
-        mp3_content = _get_mp3_from_url(info["url"])
-        _write_mp3(mp3_content, mp3_path)
+        mp3_content = _get_mp3_from_url(track["url"])
+        if mp3_content:
+            _write_mp3(mp3_content, mp3_path)
+        else:
+            mp3_path = None
     return mp3_path, cached
 
 
