@@ -19,7 +19,7 @@ from bcp.gui import main  # noqa: E402
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("url", type=str, help="Optional band url")
+    parser.add_argument("url", nargs="?", help="Optional band url", default="")
     parser.add_argument(
         "-s",
         "--skip-cached",

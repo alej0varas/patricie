@@ -1,5 +1,4 @@
 import os
-import time
 from datetime import timedelta
 
 import arcade
@@ -7,7 +6,7 @@ import arcade
 from . import textures
 from .log import get_loger
 from .player import Player
-from .utils import get_clipboad_content, threaded
+from .utils import get_clipboad_content
 
 from . import __VERSION__
 
@@ -249,16 +248,19 @@ class MyView(arcade.View):
             align_y=10,
         )
 
-        self.player = Player(self.handler_music_over, skip_cached)
+        self.player = Player(self.on_click_next, skip_cached)
         self.keys_held = dict()
         self.focus_set = dict()
         self.current_track_info = None
-        self.threads = list()
 
     def on_click_play(self, *_):
         if not self.url_input_text.text:
             return
         self.player.play(self.url_input_text.text)
+
+    def on_click_next(self, *_):
+        self.player.next()
+        self.on_click_play()
 
     def play_update_gui(self):
         if not self.player:
@@ -290,9 +292,6 @@ class MyView(arcade.View):
     def on_click_pause(self, *_):
         self.player.pause()
 
-    def on_click_next(self, *_):
-        self.handler_music_over()
-
     def on_click_vol_down(self, *_):
         self.player.volume_down()
 
@@ -302,9 +301,6 @@ class MyView(arcade.View):
     def on_click_quit(self, *_):
         self.player.stop()
         arcade.exit()
-
-    def handler_music_over(self):
-        self.player.next()
 
     def on_key_press(self, key, modifiers):
         self.keys_held[key] = True

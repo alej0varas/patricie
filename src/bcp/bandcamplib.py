@@ -22,8 +22,12 @@ os.environ["ALSOFT_LOGLEVEL"] = "0"
 
 _user_data_dir = user_data_dir("patricie")
 _log("User data directory:", _user_data_dir)
+if not os.path.exists(_user_data_dir):
+    os.makedirs(_user_data_dir)
 _tracks_dir = os.path.join(_user_data_dir, "tracks")
 _log("Traks directory:", _tracks_dir)
+if not os.path.exists(_tracks_dir):
+    os.makedirs(_tracks_dir)
 _environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
 _cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment + ".sqlite")
 _session = utils.Session(_cache_name)
@@ -84,9 +88,11 @@ def _get_albums_urls_from_html(html):
         hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
     r = list()
     for href in hrefs:
-        if href.startswith("/"):
+        # bandcamp.com now includes tracks in the band page, before it
+        # was only albums, so we have to filter them out.
+        if href.startswith("/album/"):
             r.append(href)
-    _log("Lodaded items count:", len(r))
+    _log("Loaded items count:", len(r))
     return r
 
 
@@ -106,22 +112,12 @@ def _get_tracks_from_html(html):
     return tracks
 
 
-def _get_mp3_from_url(url):
-    with _session.cache_disabled():
-        return _fetch_url_content(url)
-
-
 def _fetch_url_content(url):
-    if not _session.cache.contains(url=url):
-        _log("Url not cached", url)
-        utils.throttle()
-    else:
-        _log("Url cached", url)
+    _log("Fetch get:", url)
     try:
-        _log("Request get:", url)
         content = _session.get(url).content
     except Exception as e:
-        raise StopIteration(f"Error getting url {e}")
+        raise Exception(f"Error getting url {e}")
     else:
         if not content:
             raise ValueError("The url can't be fetched or the response is invalid")
@@ -130,16 +126,17 @@ def _fetch_url_content(url):
 
 def _get_mp3_path(track):
     album_path = os.path.join(_tracks_dir, track["artist"], track["album"])
+    if not os.path.isdir(album_path):
+        os.makedirs(album_path)
     title = slugify(track["title"])
     mp3_path = os.path.join(album_path, title + ".mp3")
-    if os.path.exists(os.path.join(album_path, title + ".mp3")):
+    if os.path.exists(mp3_path):
         cached = True
         _log("File exists:", mp3_path)
     else:
         cached = False
-        if not os.path.isdir(album_path):
-            os.makedirs(album_path)
-        mp3_content = _get_mp3_from_url(track["url"])
+        with _session.cache.cache_disabled():
+            mp3_content = _fetch_url_content(track["url"])
         if mp3_content:
             _write_mp3(mp3_content, mp3_path)
         else:

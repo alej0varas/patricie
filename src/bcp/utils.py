@@ -3,7 +3,6 @@ import time
 import http.client
 import sqlite3
 import ssl
-import threading
 import urllib.request
 from contextlib import contextmanager
 from tkinter import Tk
@@ -29,21 +28,9 @@ def throttle():
     _time_diff = (datetime.now() - _prev_call_time).total_seconds()
     if _time_diff < THROTTLE_TIME:
         _throttle_for = THROTTLE_TIME - _time_diff
-        _log("Throttle start:", _throttle_for)
+        _log("Throttle start: {:.2f}".format(_throttle_for))
         time.sleep(_throttle_for)
     _prev_call_time = datetime.now()
-
-
-def threaded(func):
-    def wrapper(*args, **kwargs):
-        def target():
-            func(*args, **kwargs)
-
-        thread = threading.Thread(target=target)
-        thread.start()
-        args[0].threads.append(thread)
-
-    return wrapper
 
 
 class Session:
@@ -53,18 +40,15 @@ class Session:
         self.cache = HTTPCache(cache_name)
 
     def get(self, url):
-        if self.cache.enabled:
-            content = self.cache.get(url)
-            if not content:
-                content = self._fetch(url)
-                self.cache.set(url, content)
-        else:
+        content = self.cache.get(url)
+        if not content:
+            throttle()
             content = self._fetch(url)
+            self.cache.set(url, content)
         self.content = content
         return self
 
     def _fetch(self, url):
-        throttle()
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
         succes = False
         while not succes:
@@ -82,14 +66,6 @@ class Session:
             else:
                 succes = True
         return content
-
-    @contextmanager
-    def cache_disabled(self, *args, **kwds):
-        try:
-            self.cache.disable()
-            yield self
-        finally:
-            self.cache.enable()
 
 
 class HTTPCache:
@@ -110,20 +86,20 @@ class HTTPCache:
     def enable(self):
         self.enabled = True
 
-    def contains(self, url):
+    def get(self, url):
+        if not self.enabled:
+            return None
         self.conn = sqlite3.connect(self.cache_name)
         self.cursor = self.conn.cursor()
         self.cursor.execute("SELECT content FROM cache WHERE url=?", (url,))
         result = self.cursor.fetchone()
         self.conn.close()
-        return result
-
-    def get(self, url):
-        result = self.contains(url)
         if result:
             return result[0]
 
     def set(self, url, content):
+        if not self.enabled:
+            return
         self.conn = sqlite3.connect(self.cache_name)
         self.cursor = self.conn.cursor()
         self.cursor.execute(
@@ -131,3 +107,11 @@ class HTTPCache:
         )
         self.conn.commit()
         self.conn.close()
+
+    @contextmanager
+    def cache_disabled(self, *args, **kwds):
+        try:
+            self.disable()
+            yield self
+        finally:
+            self.enable()

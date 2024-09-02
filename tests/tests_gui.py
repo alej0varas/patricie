@@ -8,6 +8,7 @@ log.DEBUG = True
 class MainTests(unittest.TestCase):
     def test_main_with_artist(self):
         gui.main(
-            skip_downloaded=not True,
+            skip_cached=True,
             fullscreen=False,
+            url="https://<band>.bandcamp.com/",
         )

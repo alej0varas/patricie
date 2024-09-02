@@ -5,7 +5,6 @@ import arcade.gui
 
 from . import bandcamplib
 from .log import get_loger
-from . import utils
 
 _log = get_loger(__name__)
 
@@ -18,84 +17,95 @@ class Player:
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
         self.playing = False
-        self.threads = list()
         self.is_setup = False
 
     def setup(self, url):
+        self.current_sound = None
         self.media_player = None
         self.band = bandcamplib.get_band(url)
-        self.album_index = 0
-        self.album = bandcamplib.get_album(self.band["albums_urls"][self.album_index])
-        self.track_index = 0
-        self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
-        self.do_stop = False
+        self.album_index = -1
+        self.album = None
+        self.track_index = -1
+        self.track = None
         self.user_volume = 100
         self.is_setup = True
         self.current_url = url
 
     def get_media_player(self):
-        self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
-        self.media_player = self.current_sound.play(volume=0)
-        self.media_player.pause()
         try:
-            self.media_player.pop_handlers()
-        except Exception as e:
-            _log("Unable to pop handler", e)
+            self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
+        except FileNotFoundError as e:
+            _log("Can't get media player", e)
+            return
+        self.media_player = self.current_sound.play(volume=0)
         self.media_player.push_handlers(on_eos=self._handler_music_over)
+        self.media_player.pause()
 
     def get_next_track(self):
+        new_album = False
         self.track_index += 1
-        try:
-            self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
-        except IndexError:
-            self.album_index += 1
-            self.track_index = 0
-        try:
+        if not self.album:
             self.album = bandcamplib.get_album(
                 self.band["albums_urls"][self.album_index]
             )
+        try:
+            self.album["tracks"][self.track_index]
         except IndexError:
-            self.album = None
-            self.track = None
-        else:
-            self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
+            self.album_index += 1
+            self.track_index = 0
+            new_album = True
+        if new_album:
+            try:
+                self.band["albums_urls"][self.album_index]
+            except IndexError:
+                raise Exception("EOD: End Of Discography :L")
+            else:
+                _log("Next album:", self.band["albums_urls"][self.album_index])
+                self.album = bandcamplib.get_album(
+                    self.band["albums_urls"][self.album_index]
+                )
+        _log("Next track:", self.album["tracks"][self.track_index]["title"])
+        self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
 
-    @utils.threaded
     def play(self, url=None):
         if not self.is_setup and url is not None:
             self.setup(url)
-        if not self.media_player:
+        if not self.track:
+            self.get_next_track()
+        while not self.media_player:
             self.get_media_player()
-        if self.skip_cached and self.track["cached"]:
-            _log("Skipping song")
-            self.media_player = None
-            self.play()
-            return
-        if self.media_player:
-            self.media_player.play()
-            self.fade_in(0.5)
-            self.playing = True
+            if self.skip_cached and self.track["cached"]:
+                _log("Skipping track", self.track["title"])
+                self.next()
+        self.media_player.play()
+        self.fade_in(0.5)
+        self.playing = True
 
-    @utils.threaded
     def pause(self):
         if self.playing:
             self.fade_out(0.25)
             self.media_player.pause()
             self.playing = False
 
-    @utils.threaded
     def next(self):
-        self.playing = False
-        self.fade_out(0.25)
-        try:
-            self.current_sound.stop(self.media_player)
-        except AttributeError as e:
-            _log("Error stopping song", e)
-        self.media_player = None
+        self.stop()
         self.get_next_track()
-        self.play()
 
-    @utils.threaded
+    def stop(self):
+        if self.playing:
+            self.fade_out()
+        self.playing = False
+        if self.current_sound and self.media_player:
+            self.current_sound.stop(self.media_player)
+            try:
+                self.media_player.pop_handlers()
+            except Exception as e:
+                _log("Unable to pop handler", e)
+            del self.current_sound
+            del self.media_player
+            self.current_sound = None
+            self.media_player = None
+
     def fade_in(self, duration=1.0):
         if self.media_player:
             new_vol = (
@@ -111,7 +121,6 @@ class Player:
                 new_vol += Player.VOLUME_DELTA_SMALL
                 time.sleep(duration / 100)
 
-    @utils.threaded
     def volume_up(self, value=VOLUME_DELTA):
         if self.media_player:
             new_vol = self.current_sound.get_volume(self.media_player) + value
@@ -119,7 +128,6 @@ class Player:
                 new_vol = 1
             self.volume_set(new_vol)
 
-    @utils.threaded
     def volume_down(self, value=VOLUME_DELTA):
         if self.media_player:
             new_vol = self.current_sound.get_volume(self.media_player) - value
@@ -135,13 +143,6 @@ class Player:
                 pass
             if set_user_volume:
                 self.user_volume = value
-
-    def stop(self):
-        self.do_stop = True
-        if self.playing:
-            self.fade_out()
-            self.current_sound.stop(self.media_player)
-        print(self.threads)
 
     def fade_out(self, duration=1.0):
         if self.media_player:
