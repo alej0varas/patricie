@@ -69,8 +69,10 @@ class Player:
                 self.album = bandcamplib.get_album(
                     self.band["albums_urls"][self.album_index]
                 )
-        _log("Next track:", self.album["tracks"][self.track_index]["title"])
-        self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
+        # there are albums without tracks :/
+        if self.album["tracks"]:
+            _log("Next track:", self.album["tracks"][self.track_index]["title"])
+            self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
 
     def get_media_player(self):
         try:
