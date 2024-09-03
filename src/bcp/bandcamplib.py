@@ -20,18 +20,20 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
 
-_user_data_dir = user_data_dir("patricie")
-_log("User data directory:", _user_data_dir)
-if not os.path.exists(_user_data_dir):
-    os.makedirs(_user_data_dir)
-_tracks_dir = os.path.join(_user_data_dir, "tracks")
-_log("Traks directory:", _tracks_dir)
-if not os.path.exists(_tracks_dir):
-    os.makedirs(_tracks_dir)
-_environment = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
-_cache_name = os.path.join(_user_data_dir, "requests_cache" + _environment + ".sqlite")
-_session = utils.Session(_cache_name)
-_log("Cache path:", _session.cache.cache_name)
+USER_DATA_DIR = user_data_dir("patricie")
+_log("Root directory:", USER_DATA_DIR)
+if not os.path.exists(USER_DATA_DIR):
+    os.makedirs(USER_DATA_DIR)
+TRACKS_DIR = os.path.join(USER_DATA_DIR, "tracks")
+_log("Traks directory:", TRACKS_DIR)
+if not os.path.exists(TRACKS_DIR):
+    os.makedirs(TRACKS_DIR)
+ENVIRONMENT_STR = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
+HTTP_CACHE_PATH = os.path.join(
+    USER_DATA_DIR, "requests_cache" + ENVIRONMENT_STR + ".sqlite"
+)
+_log("Http Cache path:", HTTP_CACHE_PATH)
+http_session = utils.Session(HTTP_CACHE_PATH)
 
 
 def get_band(url):
@@ -50,14 +52,25 @@ def get_album(url):
         # FIX: track's url will have an album with the name of the track
         artist = parsed_url.netloc.split(".")[0]
         album = parsed_url.path.split("/")[2]
-        track.update({"artist": artist, "album": album, "title": track["title"]})
+        album_path = os.path.join(TRACKS_DIR, artist, album)
+        if not os.path.isdir(album_path):
+            os.makedirs(album_path)
+        track.update(
+            {
+                "artist": artist,
+                "album": album,
+                "title": track["title"],
+                "album_path": album_path,
+            }
+        )
         t.append(track)
     r["tracks"] = t
     return r
 
 
 def get_mp3(track):
-    track["path"], cached = _get_mp3_path(track)
+    track["path"] = _get_mp3_path(track)
+    cached = _get_mp3_file(track)
     track["cached"] = cached
     return track
 
@@ -113,42 +126,30 @@ def _get_tracks_from_html(html):
 
 
 def _fetch_url_content(url):
-    _log("Fetch get:", url)
+    _log("Fetch url:", url)
     try:
-        content = _session.get(url).content
+        content = http_session.get(url).content
     except Exception as e:
         raise Exception(f"Error getting url {e}")
-    else:
-        if not content:
-            raise ValueError("The url can't be fetched or the response is invalid")
     return content
 
 
 def _get_mp3_path(track):
-    album_path = os.path.join(_tracks_dir, track["artist"], track["album"])
-    if not os.path.isdir(album_path):
-        os.makedirs(album_path)
     title = slugify(track["title"])
-    mp3_path = os.path.join(album_path, title + ".mp3")
-    if os.path.exists(mp3_path):
+    mp3_path = os.path.join(track["album_path"], title + ".mp3")
+    return mp3_path
+
+
+def _get_mp3_file(track):
+    if os.path.exists(track["path"]):
         cached = True
-        _log("File exists:", mp3_path)
     else:
         cached = False
-        with _session.cache.cache_disabled():
+        with http_session.cache.cache_disabled():
             mp3_content = _fetch_url_content(track["url"])
-        if mp3_content:
-            _write_mp3(mp3_content, mp3_path)
-        else:
-            mp3_path = None
-    return mp3_path, cached
-
-
-def _write_mp3(mp3_content, mp3_path):
-    if not os.path.isfile(mp3_path):
-        with open(mp3_path, "bw") as song_file:
+        with open(track["path"], "bw") as song_file:
             song_file.write(mp3_content)
-    return mp3_path
+    return cached
 
 
 def _get_url_type(url):

@@ -31,15 +31,20 @@ class Player:
         self.is_setup = True
         self.current_url = url
 
-    def get_media_player(self):
-        try:
-            self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
-        except FileNotFoundError as e:
-            _log("Can't get media player", e)
-            return
-        self.media_player = self.current_sound.play(volume=0)
-        self.media_player.push_handlers(on_eos=self._handler_music_over)
-        self.media_player.pause()
+    def play(self, url=None):
+        if not self.is_setup and url is not None:
+            self.setup(url)
+        if not self.track:
+            self.get_next_track()
+        while not self.media_player:
+            if self.skip_cached and self.track["cached"]:
+                _log("Skipping track", self.track["title"])
+                self.get_next_track()
+                continue
+            self.get_media_player()
+        self.media_player.play()
+        self.fade_in(0.5)
+        self.playing = True
 
     def get_next_track(self):
         new_album = False
@@ -67,19 +72,14 @@ class Player:
         _log("Next track:", self.album["tracks"][self.track_index]["title"])
         self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
 
-    def play(self, url=None):
-        if not self.is_setup and url is not None:
-            self.setup(url)
-        if not self.track:
-            self.get_next_track()
-        while not self.media_player:
-            self.get_media_player()
-            if self.skip_cached and self.track["cached"]:
-                _log("Skipping track", self.track["title"])
-                self.next()
-        self.media_player.play()
-        self.fade_in(0.5)
-        self.playing = True
+    def get_media_player(self):
+        try:
+            self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
+        except FileNotFoundError as e:
+            _log("Can't get media player", e)
+            return
+        self.media_player = self.current_sound.play(volume=0)
+        self.media_player.push_handlers(on_eos=self._handler_music_over)
 
     def pause(self):
         if self.playing:

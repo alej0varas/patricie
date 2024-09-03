@@ -49,6 +49,7 @@ class Session:
         return self
 
     def _fetch(self, url):
+        _log("Fetch url:", url)
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
         succes = False
         while not succes:
@@ -95,6 +96,7 @@ class HTTPCache:
         result = self.cursor.fetchone()
         self.conn.close()
         if result:
+            _log("url cached:", url)
             return result[0]
 
     def set(self, url, content):
