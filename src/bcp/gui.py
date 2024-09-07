@@ -2,13 +2,12 @@ import os
 from datetime import timedelta
 
 import arcade
+import arcade.gui
 
-from . import textures
+from . import __VERSION__, textures
 from .log import get_loger
 from .player import Player
 from .utils import get_clipboad_content
-
-from . import __VERSION__
 
 _log = get_loger(__name__)
 

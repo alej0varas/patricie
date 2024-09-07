@@ -1,7 +1,7 @@
 import time
+from datetime import timedelta
 
-import arcade
-import arcade.gui
+from arcade import load_sound
 
 from . import bandcamplib
 from .log import get_loger
@@ -79,7 +79,7 @@ class Player:
         if self.track is None:
             return
         try:
-            self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
+            self.current_sound = load_sound(self.track["path"], streaming=True)
         except FileNotFoundError as e:
             _log("Can't get media player", e)
             return
@@ -196,4 +196,7 @@ class Player:
 
     def statistics(self):
         if self.band and self.album:
-            return f"albums {len(self.band['albums'])} | current album tracks {len(self.album['tracks'])}"
+            d = 0
+            for t in self.album["tracks"]:
+                d += int(t["duration"])
+            return f"albums {len(self.band['albums'])} | album tracks {len(self.album['tracks'])} | album duration {timedelta(seconds=d)}"
