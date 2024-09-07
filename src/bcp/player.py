@@ -16,6 +16,7 @@ class Player:
     def __init__(self, handler_music_over, skip_cached=False):
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
+        self.downloading = False
         self.playing = False
         self.is_setup = False
         self.current_sound = None
@@ -34,8 +35,8 @@ class Player:
     def play(self, url=None):
         if not self.is_setup and url is not None:
             self.setup(url)
-        while not self.media_player:
             self.get_next_track()
+        while not self.media_player:
             if self.track and self.skip_cached and self.track["cached"]:
                 _log("Skipping track", self.track["title"])
                 continue
@@ -48,6 +49,7 @@ class Player:
         new_album = False
         self.track_index += 1
         if not self.album:
+            self.album_index = 0
             self.album = bandcamplib.get_album(
                 self.band["albums_urls"][self.album_index]
             )
@@ -69,11 +71,14 @@ class Player:
                 )
         # there are albums without tracks :/
         if self.album["tracks"]:
-            _log("Next track:", self.album["tracks"][self.track_index]["title"])
-            try:
-                self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
-            except bandcamplib.NoMP3ContentError:
-                self.track = None
+            next_track = self.album["tracks"][self.track_index]
+            _log("Next track:", next_track["title"])
+            if not next_track.get("path"):  # track has been already downloaded
+                try:
+                    next_track = bandcamplib.get_mp3(next_track)
+                except bandcamplib.NoMP3ContentError:
+                    next_track = None
+            self.track = next_track
 
     def get_media_player(self):
         if self.track is None:
@@ -199,4 +204,19 @@ class Player:
             d = 0
             for t in self.album["tracks"]:
                 d += int(t["duration"])
-            return f"albums {len(self.band['albums'])} | album tracks {len(self.album['tracks'])} | album duration {timedelta(seconds=d)}"
+            return f"albums {len(self.band['albums'])} - current {self.album_index} | album tracks {len(self.album['tracks'])} - current {self.track_index} | album duration {timedelta(seconds=d)}"
+
+    def update(self):
+        track_index = self.track_index + 1
+        if (
+            not self.downloading
+            and self.track
+            and not self.album["tracks"][track_index].get("path")
+            and self.track["duration"] - self.get_position() < 260
+        ):
+            self.downloading = True
+
+            self.album["tracks"][track_index] = bandcamplib.get_mp3(
+                self.album["tracks"][track_index]
+            )
+            self.downloading = False

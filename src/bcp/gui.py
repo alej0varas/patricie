@@ -358,6 +358,11 @@ class MyView(arcade.View):
             case arcade.key.Q:
                 self.quit_button.on_click()
 
+        if self.keys_held.get(arcade.key.UP):
+            self.player.volume_up(Player.VOLUME_DELTA_SMALL)
+        if self.keys_held.get(arcade.key.DOWN):
+            self.player.volume_down(Player.VOLUME_DELTA_SMALL)
+
     def on_show_view(self):
         self.window.background_color = arcade.color.DARK_BLUE_GRAY
         self.ui.enable()
@@ -366,10 +371,7 @@ class MyView(arcade.View):
         self.ui.disable()
 
     def on_update(self, time_delta):
-        if self.keys_held.get(arcade.key.UP):
-            self.player.volume_up(Player.VOLUME_DELTA_SMALL)
-        if self.keys_held.get(arcade.key.DOWN):
-            self.player.volume_down(Player.VOLUME_DELTA_SMALL)
+        self.player.update()
 
     def on_draw(self):
         self.clear()
