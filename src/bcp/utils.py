@@ -1,17 +1,21 @@
-from urllib.error import HTTPError
-import time
 import http.client
+import os
+import random
 import sqlite3
 import ssl
+import time
 import urllib.request
 from contextlib import contextmanager
-from tkinter import Tk
-
 from datetime import datetime
+from tkinter import Tk
+from urllib.error import HTTPError
+
 from .log import get_loger
 
+DEBUG = os.environ.get("DEBUG", False)
+
 _log = get_loger(__name__)
-THROTTLE_TIME = 5
+THROTTLE_TIME = (5, 15)
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
 
@@ -24,10 +28,12 @@ def get_clipboad_content():
 
 
 def throttle():
+    if DEBUG:
+        return
     global _prev_call_time
     _time_diff = (datetime.now() - _prev_call_time).total_seconds()
-    if _time_diff < THROTTLE_TIME:
-        _throttle_for = THROTTLE_TIME - _time_diff
+    _throttle_for = random.randint(*THROTTLE_TIME) - _time_diff
+    if _throttle_for >= 0:
         _log("Throttle start: {:.2f}".format(_throttle_for))
         time.sleep(_throttle_for)
     _prev_call_time = datetime.now()
@@ -45,33 +51,27 @@ class Session:
             throttle()
             content = self._fetch(url)
             self.cache.set(url, content)
-        self.content = content
-        return self
+        return content
 
     def _fetch(self, url):
         _log("Fetch url:", url)
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
-        succes = False
-        while not succes:
-            try:
-                with urllib.request.urlopen(url, context=context) as f:
-                    content = f.read()
-            except HTTPError as e:
-                _log(f"failed to get url: {url}")
-                _log(f"error: {e.status}")
-                if e.status == 410:
-                    return None
-            except http.client.IncompleteRead as e:
-                _log(f"failed to get url: {url}")
-                _log(f"error: {e}")
-            else:
-                succes = True
+        content = None
+        try:
+            with urllib.request.urlopen(url, context=context) as f:
+                content = f.read()
+        except HTTPError as e:
+            _log(f"failed to get url: {url}")
+            _log(f"error: {e.status}")
+        except http.client.IncompleteRead as e:
+            _log(f"failed to get url: {url}")
+            _log(f"error: {e}")
         return content
 
 
 class HTTPCache:
-    def __init__(self, cache_name):
-        self.enabled = True
+    def __init__(self, cache_name, enabled=False):
+        self.enabled = DEBUG
         self.cache_name = cache_name
         self.conn = sqlite3.connect(self.cache_name)
         self.cursor = self.conn.cursor()

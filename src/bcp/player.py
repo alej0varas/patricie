@@ -18,28 +18,26 @@ class Player:
         self.skip_cached = skip_cached
         self.playing = False
         self.is_setup = False
-
-    def setup(self, url):
         self.current_sound = None
         self.media_player = None
-        self.band = bandcamplib.get_band(url)
+        self.band = None
         self.album_index = -1
         self.album = None
         self.track_index = -1
         self.track = None
         self.user_volume = 100
+
+    def setup(self, url):
+        self.band = bandcamplib.get_band(url)
         self.is_setup = True
-        self.current_url = url
 
     def play(self, url=None):
         if not self.is_setup and url is not None:
             self.setup(url)
-        if not self.track:
-            self.get_next_track()
         while not self.media_player:
-            if self.skip_cached and self.track["cached"]:
+            self.get_next_track()
+            if self.track and self.skip_cached and self.track["cached"]:
                 _log("Skipping track", self.track["title"])
-                self.get_next_track()
                 continue
             self.get_media_player()
         self.media_player.play()
@@ -72,9 +70,14 @@ class Player:
         # there are albums without tracks :/
         if self.album["tracks"]:
             _log("Next track:", self.album["tracks"][self.track_index]["title"])
-            self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
+            try:
+                self.track = bandcamplib.get_mp3(self.album["tracks"][self.track_index])
+            except bandcamplib.NoMP3ContentError:
+                self.track = None
 
     def get_media_player(self):
+        if self.track is None:
+            return
         try:
             self.current_sound = arcade.load_sound(self.track["path"], streaming=True)
         except FileNotFoundError as e:
@@ -190,3 +193,7 @@ class Player:
         if self.playing:
             return "{title}".format(**self.track)
         return ""
+
+    def statistics(self):
+        if self.band and self.album:
+            return f"albums {len(self.band['albums'])} | current album tracks {len(self.album['tracks'])}"

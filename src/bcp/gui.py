@@ -83,7 +83,7 @@ class MyView(arcade.View):
             row_num=0,
         )
 
-        # buttons grid, at the bottom
+        # buttons grid
         self.second_grid = arcade.gui.UIGridLayout(
             column_count=6,
             row_count=1,
@@ -233,6 +233,17 @@ class MyView(arcade.View):
             row_num=1,
         )
 
+        # useless details like albums count, tracks count, ...
+        self.useless_details = arcade.gui.UILabel("")
+
+        self.ui.add(arcade.gui.UIAnchorLayout()).add(
+            anchor_x="right",
+            anchor_y="bottom",
+            child=self.useless_details,
+            align_x=-200,
+            align_y=10,
+        )
+
         # version text
         text_version = arcade.gui.UILabel(
             "Version: {} - Build: {}".format(
@@ -377,6 +388,8 @@ class MyView(arcade.View):
             dur_string = template.format(str(timedelta(seconds=int(_time)))[2:])
             time_string = pos_string + " / " + dur_string
             self.text_time.text = time_string
+
+        self.useless_details.text = self.player.statistics()
 
         self.ui.draw()
 

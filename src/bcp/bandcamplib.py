@@ -37,8 +37,12 @@ http_session = utils.Session(HTTP_CACHE_PATH)
 
 
 def get_band(url):
+    # ensure url ends in '/music' some band pages redirect to an album
+    # or track when ther's no path.
+    url = "/".join(url.split("/")[0:-1]) + "/music"
     r = dict()
     r["albums_urls"] = _get_albums_urls_from_url(url)
+    r["albums"] = r["albums_urls"]
     return r
 
 
@@ -127,10 +131,7 @@ def _get_tracks_from_html(html):
 
 def _fetch_url_content(url):
     _log("Fetch url:", url)
-    try:
-        content = http_session.get(url).content
-    except Exception as e:
-        raise Exception(f"Error getting url {e}")
+    content = http_session.get(url)
     return content
 
 
@@ -140,6 +141,10 @@ def _get_mp3_path(track):
     return mp3_path
 
 
+class NoMP3ContentError(Exception):
+    pass
+
+
 def _get_mp3_file(track):
     if os.path.exists(track["path"]):
         cached = True
@@ -147,6 +152,8 @@ def _get_mp3_file(track):
         cached = False
         with http_session.cache.cache_disabled():
             mp3_content = _fetch_url_content(track["url"])
+            if mp3_content is None:
+                raise NoMP3ContentError("Unable to get mp3 file")
         with open(track["path"], "bw") as song_file:
             song_file.write(mp3_content)
     return cached
