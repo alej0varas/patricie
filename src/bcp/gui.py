@@ -272,6 +272,10 @@ class MyView(arcade.View):
         self.player.next()
         self.on_click_play()
 
+    def on_click_next_album(self, *_):
+        self.player.next_album()
+        self.on_click_play()
+
     def play_update_gui(self):
         if not self.player:
             return
@@ -347,6 +351,9 @@ class MyView(arcade.View):
                     self.play_button.on_click()
             case arcade.key.N:
                 self.next_button.on_click()
+            case arcade.key.S:
+                # TODO: bind to button.on_click
+                self.on_click_next_album()
             case arcade.key.DOWN:
                 self.vol_down_button.on_click()
                 self.keys_held[arcade.key.DOWN] = False

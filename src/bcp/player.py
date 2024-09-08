@@ -39,14 +39,13 @@ class Player:
         while not self.media_player:
             if self.track and self.skip_cached and self.track["cached"]:
                 _log("Skipping track", self.track["title"])
-                continue
+                self.get_next_track()
             self.get_media_player()
         self.media_player.play()
         self.fade_in(0.5)
         self.playing = True
 
-    def get_next_track(self):
-        new_album = False
+    def get_next_track(self, new_album=False):
         self.track_index += 1
         if not self.album:
             self.album_index = 0
@@ -97,9 +96,15 @@ class Player:
             self.media_player.pause()
             self.playing = False
 
-    def next(self):
+    def next(self, new_album=False):
         self.stop()
-        self.get_next_track()
+        self.get_next_track(new_album=new_album)
+
+    def next_album(self):
+        self.track_index = -1
+        self.album_index += 1
+        self.new_album = True
+        self.next(new_album=True)
 
     def stop(self):
         if self.playing:
