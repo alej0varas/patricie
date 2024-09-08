@@ -211,6 +211,7 @@ class Player:
         if (
             not self.downloading
             and self.track
+            and track_index < len(self.album["tracks"])
             and not self.album["tracks"][track_index].get("path")
             and self.track["duration"] - self.get_position() < 260
         ):
