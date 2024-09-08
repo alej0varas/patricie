@@ -199,13 +199,6 @@ class Player:
             return "{title}".format(**self.track)
         return ""
 
-    def statistics(self):
-        if self.band and self.album:
-            d = 0
-            for t in self.album["tracks"]:
-                d += int(t["duration"])
-            return f"albums {len(self.band['albums'])} - current {self.album_index} | album tracks {len(self.album['tracks'])} - current {self.track_index} | album duration {timedelta(seconds=d)}"
-
     def update(self):
         track_index = self.track_index + 1
         if (
@@ -221,3 +214,10 @@ class Player:
                 self.album["tracks"][track_index]
             )
             self.downloading = False
+
+    def statistics(self):
+        if self.band and self.album:
+            d = 0
+            for t in self.album["tracks"]:
+                d += int(t["duration"])
+            return f"albums {len(self.band['albums'])} - current {self.album_index + 1} | album tracks {len(self.album['tracks'])} - current {self.track_index + 1} | album duration {timedelta(seconds=d)}"
