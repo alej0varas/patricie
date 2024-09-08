@@ -51,6 +51,7 @@ def get_album(url):
     html = _fetch_url_content(url)
     tracks = _get_tracks_from_html(html)
     t = list()
+    _log("Loaded tracks")
     for track in tracks:
         parsed_url = urlparse(url)
         # FIX: track's url will have an album with the name of the track
@@ -59,6 +60,7 @@ def get_album(url):
         album_path = os.path.join(TRACKS_DIR, artist, album)
         if not os.path.isdir(album_path):
             os.makedirs(album_path)
+        _log("    ", track["title"])
         track.update(
             {
                 "artist": artist,
@@ -85,9 +87,11 @@ def _get_albums_urls_from_url(url):
     albums_urls_path = _get_albums_urls_from_html(music_html)
 
     parsed_url = urlparse(url)
+    _log("Loaded albums")
     for album_url_path in albums_urls_path:
         album_url = parsed_url._replace(path=album_url_path).geturl()
         albums_urls.append(album_url)
+        _log("    ", album_url)
     return albums_urls
 
 

@@ -40,6 +40,7 @@ class Player:
             if self.track and self.skip_cached and self.track["cached"]:
                 _log("Skipping track", self.track["title"])
                 self.get_next_track()
+                continue
             self.get_media_player()
         self.media_player.play()
         self.fade_in(0.5)
