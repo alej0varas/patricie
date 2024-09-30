@@ -1,15 +1,14 @@
 import json
 import os
-
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import dotenv
 from bs4 import BeautifulSoup
 from platformdirs import user_data_dir
 from slugify import slugify
 
-from .log import get_loger
 from . import utils
+from .log import get_loger
 
 dotenv.load_dotenv()
 _log = get_loger(__name__)
@@ -39,7 +38,7 @@ http_session = utils.Session(HTTP_CACHE_PATH)
 def get_band(url):
     # ensure url ends in '/music' some band pages redirect to an album
     # or track when ther's no path.
-    url = "/".join(url.split("/")[0:-1]) + "/music"
+    url = urlunparse(urlparse(url)._replace(path='music'))
     r = dict()
     r["albums_urls"] = _get_albums_urls_from_url(url)
     r["albums"] = r["albums_urls"]
