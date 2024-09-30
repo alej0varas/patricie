@@ -1,7 +1,7 @@
 import unittest
+
 from . import constants
 from .context import bcp
-
 
 bcp.log.DEBUG = True
 

@@ -1,6 +1,6 @@
 import unittest
-from .context import log, gui
 
+from .context import gui, log
 
 log.DEBUG = True
 
