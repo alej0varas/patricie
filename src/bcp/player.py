@@ -1,5 +1,5 @@
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from arcade import load_sound
 
@@ -23,6 +23,7 @@ class Player:
         self.media_player = None
         self.band = None
         self.album_index = -1
+        self.skip_album = False
         self.album = None
         self.track_index = -1
         self.track = None
@@ -46,39 +47,36 @@ class Player:
         self.fade_in(0.5)
         self.playing = True
 
-    def get_next_track(self, new_album=False):
-        self.track_index += 1
-        if not self.album:
-            self.album_index = 0
+    def get_next_track(self):
+        next_album = False
+        if self.skip_album or self.album_index < 0:
+            self.skip_album = False
+            self.album_index += 1
+            self.track_index = -1
+            next_album = True
+            if self.album_index >= len(self.band["albums_urls"]):
+                raise Exception("EOD: End Of Discography :L")
+        if next_album or self.request_expired(self.album):
             self.album = bandcamplib.get_album(
                 self.band["albums_urls"][self.album_index]
             )
-        try:
-            self.album["tracks"][self.track_index]
-        except IndexError:
-            self.album_index += 1
-            self.track_index = 0
-            new_album = True
-        if new_album:
+        if not self.album["tracks"]:  # there are albums without tracks :/
+            self.skip_album = True
+            self.get_next_track()
+            return
+        self.track_index += 1
+        if self.track_index >= len(self.album["tracks"]):
+            self.skip_album = True
+            self.get_next_track()
+            return
+        next_track = self.album["tracks"][self.track_index]
+        _log("Next track:", next_track["title"])
+        if not next_track.get("path"):  # track hasn't been downloaded
             try:
-                self.band["albums_urls"][self.album_index]
-            except IndexError:
-                raise Exception("EOD: End Of Discography :L")
-            else:
-                _log("Next album:", self.band["albums_urls"][self.album_index])
-                self.album = bandcamplib.get_album(
-                    self.band["albums_urls"][self.album_index]
-                )
-        # there are albums without tracks :/
-        if self.album["tracks"]:
-            next_track = self.album["tracks"][self.track_index]
-            _log("Next track:", next_track["title"])
-            if not next_track.get("path"):  # track has been already downloaded
-                try:
-                    next_track = bandcamplib.get_mp3(next_track)
-                except bandcamplib.NoMP3ContentError:
-                    next_track = None
-            self.track = next_track
+                next_track = bandcamplib.get_mp3(next_track)
+            except bandcamplib.NoMP3ContentError:
+                next_track = None
+        self.track = next_track
 
     def get_media_player(self):
         if self.track is None:
@@ -91,21 +89,24 @@ class Player:
         self.media_player = self.current_sound.play(volume=0)
         self.media_player.push_handlers(on_eos=self._handler_music_over)
 
+    def request_expired(self, obj):
+        if datetime.now() - obj["request_datetime"] > timedelta(minutes=10):
+            return True
+        return False
+
     def pause(self):
         if self.playing:
             self.fade_out(0.25)
             self.media_player.pause()
             self.playing = False
 
-    def next(self, new_album=False):
+    def next(self):
         self.stop()
-        self.get_next_track(new_album=new_album)
+        self.get_next_track()
 
     def next_album(self):
-        self.track_index = -1
-        self.album_index += 1
-        self.new_album = True
-        self.next(new_album=True)
+        self.skip_album = True
+        self.next()
 
     def stop(self):
         if self.playing:

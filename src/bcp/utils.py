@@ -42,15 +42,9 @@ def throttle():
 class Session:
     """HTTP session like object created because using `requests` fails. I was not able to find the reason."""
 
-    def __init__(self, cache_name):
-        self.cache = HTTPCache(cache_name)
-
     def get(self, url):
-        content = self.cache.get(url)
-        if not content:
-            throttle()
-            content = self._fetch(url)
-            self.cache.set(url, content)
+        throttle()
+        content = self._fetch(url)
         return content
 
     def _fetch(self, url):
@@ -67,53 +61,3 @@ class Session:
             _log(f"failed to get url: {url}")
             _log(f"error: {e}")
         return content
-
-
-class HTTPCache:
-    def __init__(self, cache_name, enabled=False):
-        self.enabled = DEBUG
-        self.cache_name = cache_name
-        self.conn = sqlite3.connect(self.cache_name)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS cache (url TEXT PRIMARY KEY, content TEXT)"""
-        )
-        self.conn.commit()
-        self.conn.close()
-
-    def disable(self):
-        self.enabled = False
-
-    def enable(self):
-        self.enabled = True
-
-    def get(self, url):
-        if not self.enabled:
-            return None
-        self.conn = sqlite3.connect(self.cache_name)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute("SELECT content FROM cache WHERE url=?", (url,))
-        result = self.cursor.fetchone()
-        self.conn.close()
-        if result:
-            _log("url cached:", url)
-            return result[0]
-
-    def set(self, url, content):
-        if not self.enabled:
-            return
-        self.conn = sqlite3.connect(self.cache_name)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(
-            "INSERT INTO cache (url, content) VALUES (?, ?)", (url, content)
-        )
-        self.conn.commit()
-        self.conn.close()
-
-    @contextmanager
-    def cache_disabled(self, *args, **kwds):
-        try:
-            self.disable()
-            yield self
-        finally:
-            self.enable()

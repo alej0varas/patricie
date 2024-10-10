@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 from urllib.parse import urlparse, urlunparse
 
 import dotenv
@@ -28,11 +29,7 @@ _log("Traks directory:", TRACKS_DIR)
 if not os.path.exists(TRACKS_DIR):
     os.makedirs(TRACKS_DIR)
 ENVIRONMENT_STR = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
-HTTP_CACHE_PATH = os.path.join(
-    USER_DATA_DIR, "requests_cache" + ENVIRONMENT_STR + ".sqlite"
-)
-_log("Http Cache path:", HTTP_CACHE_PATH)
-http_session = utils.Session(HTTP_CACHE_PATH)
+http_session = utils.Session()
 
 
 def get_band(url):
@@ -70,6 +67,7 @@ def get_album(url):
         )
         t.append(track)
     r["tracks"] = t
+    r["request_datetime"] = datetime.now()
     return r
 
 
@@ -153,10 +151,9 @@ def _get_mp3_file(track):
         cached = True
     else:
         cached = False
-        with http_session.cache.cache_disabled():
-            mp3_content = _fetch_url_content(track["url"])
-            if mp3_content is None:
-                raise NoMP3ContentError("Unable to get mp3 file")
+        mp3_content = _fetch_url_content(track["url"])
+        if mp3_content is None:
+            raise NoMP3ContentError("Unable to get mp3 file")
         with open(track["path"], "bw") as song_file:
             song_file.write(mp3_content)
     return cached
