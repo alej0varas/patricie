@@ -1,3 +1,4 @@
+import threading
 import time
 from datetime import datetime, timedelta
 
@@ -9,11 +10,41 @@ from .log import get_loger
 _log = get_loger(__name__)
 
 
-class Player:
+class BackgroundTaskRunner(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.running = True
+        self.working = False
+        self.tasks = list()
+
+    def run(self):
+        while self.running:
+            self.do_task()
+            time.sleep(1)
+
+    def task(self, name, *args):
+        self.tasks.insert(0, (name, args))
+
+    def do_task(self):
+        while self.working:
+            pass
+        if not self.tasks:
+            return
+        task_to_run, task_to_run_args = self.tasks.pop()
+        if task_to_run:
+            self.working = True
+            getattr(self, task_to_run)(*task_to_run_args)
+            self.task_to_run = None
+            self.task_to_run_args = None
+            self.working = False
+
+
+class Player(BackgroundTaskRunner):
     VOLUME_DELTA = 0.1
     VOLUME_DELTA_SMALL = 0.01
 
     def __init__(self, handler_music_over, skip_cached=False):
+        super().__init__()
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
         self.downloading = False
@@ -29,11 +60,16 @@ class Player:
         self.track = None
         self.user_volume = 100
 
+        self.start()
+
     def setup(self, url):
         self.band = bandcamplib.get_band(url)
         self.is_setup = True
 
-    def play(self, url=None):
+    def play(self, url):
+        self.task("do_play", url)
+
+    def do_play(self, url=None):
         if not self.is_setup and url is not None:
             self.setup(url)
             self.get_next_track()
@@ -95,12 +131,18 @@ class Player:
         return False
 
     def pause(self):
+        self.task("do_pause")
+
+    def do_pause(self):
         if self.playing:
             self.fade_out(0.25)
             self.media_player.pause()
             self.playing = False
 
     def next(self):
+        self.task("do_next")
+
+    def do_next(self):
         self.stop()
         self.get_next_track()
 
@@ -222,9 +264,15 @@ class Player:
             )
             self.downloading = False
 
+    def quit(self):
+        self.stop()
+        self.running = False
+
     def statistics(self):
+        r = ""
         if self.band and self.album:
             d = 0
             for t in self.album["tracks"]:
                 d += int(t["duration"])
-            return f"albums {len(self.band['albums'])} - current {self.album_index + 1} | album tracks {len(self.album['tracks'])} - current {self.track_index + 1} | album duration {timedelta(seconds=d)}"
+            r = f"albums {len(self.band['albums'])} - current {self.album_index + 1} | album tracks {len(self.album['tracks'])} - current {self.track_index + 1} | album duration {timedelta(seconds=d)}"
+        return r

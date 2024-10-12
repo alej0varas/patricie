@@ -19,6 +19,8 @@ SCREEN_TITLE = f"Patricie Player {__VERSION__}"
 class MyView(arcade.View):
     def __init__(self, screen_width, screen_height, scale, skip_cached=False, url=""):
         super().__init__()
+        self.angle = 0
+
         self.screen_width, self.screen_height = screen_width, screen_height
         # calculate elements' dimentions based on screen size
         width_url_label = screen_width * 0.10
@@ -46,11 +48,10 @@ class MyView(arcade.View):
 
         self.ui = arcade.gui.UIManager()
 
-        # url label and input text grid
+        # url label, input text and loading animation
         self.first_grid = arcade.gui.UIGridLayout(
-            column_count=2,
+            column_count=3,
             row_count=1,
-            # horizontal_spacing=20,
         )
         self.first_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
         self.first_anchor.add(
@@ -60,7 +61,6 @@ class MyView(arcade.View):
             align_y=margin_top,
             child=self.first_grid,
         )
-        # URL label and input field
         self.url_label = arcade.gui.UILabel(
             "Band Link:",
             width=width_url_label,
@@ -75,22 +75,27 @@ class MyView(arcade.View):
         )
         self.url_input_text.activate()
         self.url_input_text.text = url
+
+        self.loading_animation_image = arcade.load_image("assets/loading_note.png")
+        self.loading_animation_texture = arcade.Texture(image=self.loading_animation_image)
+        self.loading_animation = arcade.gui.UIImage(
+            texture=self.loading_animation_texture,
+            height=height_url_input_text,
+            width=height_url_input_text
+        )
         self.first_grid.add(self.url_label, col_num=0, row_num=0)
         self.first_grid.add(
             self.url_input_text.with_padding(all=5).with_background(texture=bg_tex),
             col_num=1,
             row_num=0,
         )
+        self.first_grid.add(self.loading_animation, col_num=2, row_num=0)
 
         # buttons grid
         self.second_grid = arcade.gui.UIGridLayout(
             column_count=6,
             row_count=1,
-            # horizontal_spacing=20,
             vertical_spacing=20,
-            # align_horizontal="left",
-            # size_hint=(0.1, 0.1),
-            # size_hint_max=(self.screen_width * 0.8, self.screen_height * 0.8),
         )
         self.second_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
         self.second_anchor.add(
@@ -99,8 +104,6 @@ class MyView(arcade.View):
             align_y=font_size_url_label * 2,
             child=self.second_grid,
         )
-
-        # Buttons
         self.play_button = arcade.gui.widgets.buttons.UITextureButton(
             scale=scale,
             texture=textures._play_normal_texture,
@@ -233,7 +236,7 @@ class MyView(arcade.View):
         )
 
         # useless details like albums count, tracks count, ...
-        self.useless_details = arcade.gui.UILabel("")
+        self.useless_details = arcade.gui.UILabel()
 
         self.ui.add(arcade.gui.UIAnchorLayout()).add(
             anchor_x="right",
@@ -313,7 +316,7 @@ class MyView(arcade.View):
         self.player.volume_up()
 
     def on_click_quit(self, *_):
-        self.player.stop()
+        self.player.quit()
         arcade.exit()
 
     def on_key_press(self, key, modifiers):
@@ -383,6 +386,15 @@ class MyView(arcade.View):
     def on_draw(self):
         self.clear()
         self.play_update_gui()
+
+        if self.player.working:
+            self.loading_animation.visible = True
+            self.angle -= 1
+            self.loading_animation_texture = arcade.Texture(image=self.loading_animation_image.rotate(self.angle))
+            self.loading_animation.texture = self.loading_animation_texture
+            self.loading_animation.trigger_full_render()
+        else:
+            self.loading_animation.visible = False
 
         if self.player.playing:
             self.text_track_title.text = self.player.get_title()
