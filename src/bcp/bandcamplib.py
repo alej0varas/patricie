@@ -35,7 +35,7 @@ http_session = utils.Session()
 def get_band(url):
     # ensure url ends in '/music' some band pages redirect to an album
     # or track when ther's no path.
-    url = urlunparse(urlparse(url)._replace(path='music'))
+    url = urlunparse(urlparse(url)._replace(path="music"))
     r = dict()
     r["albums_urls"] = _get_albums_urls_from_url(url)
     r["albums"] = r["albums_urls"]
@@ -47,10 +47,9 @@ def get_album(url):
     html = _fetch_url_content(url)
     tracks = _get_tracks_from_html(html)
     t = list()
-    _log("Loaded tracks")
+    _log("Loaded tracks:", len(tracks))
     for track in tracks:
         parsed_url = urlparse(url)
-        # FIX: track's url will have an album with the name of the track
         artist = parsed_url.netloc.split(".")[0]
         album = parsed_url.path.split("/")[2]
         album_path = os.path.join(TRACKS_DIR, artist, album)
@@ -84,7 +83,7 @@ def _get_albums_urls_from_url(url):
     albums_urls_path = _get_albums_urls_from_html(music_html)
 
     parsed_url = urlparse(url)
-    _log("Loaded albums")
+    _log("Loaded albums", len(albums_urls_path))
     for album_url_path in albums_urls_path:
         album_url = parsed_url._replace(path=album_url_path).geturl()
         albums_urls.append(album_url)

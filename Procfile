@@ -1,1 +1,1 @@
-lint: black . && flake8 src/
+lint: black src/ && flake8 src/

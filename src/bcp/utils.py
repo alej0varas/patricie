@@ -1,11 +1,9 @@
 import http.client
 import os
 import random
-import sqlite3
 import ssl
 import time
 import urllib.request
-from contextlib import contextmanager
 from datetime import datetime
 from tkinter import Tk
 from urllib.error import HTTPError

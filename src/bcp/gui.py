@@ -77,11 +77,13 @@ class MyView(arcade.View):
         self.url_input_text.text = url
 
         self.loading_animation_image = arcade.load_image("assets/loading_note.png")
-        self.loading_animation_texture = arcade.Texture(image=self.loading_animation_image)
+        self.loading_animation_texture = arcade.Texture(
+            image=self.loading_animation_image
+        )
         self.loading_animation = arcade.gui.UIImage(
             texture=self.loading_animation_texture,
             height=height_url_input_text,
-            width=height_url_input_text
+            width=height_url_input_text,
         )
         self.first_grid.add(self.url_label, col_num=0, row_num=0)
         self.first_grid.add(
@@ -390,7 +392,9 @@ class MyView(arcade.View):
         if self.player.working:
             self.loading_animation.visible = True
             self.angle -= 1
-            self.loading_animation_texture = arcade.Texture(image=self.loading_animation_image.rotate(self.angle))
+            self.loading_animation_texture = arcade.Texture(
+                image=self.loading_animation_image.rotate(self.angle)
+            )
             self.loading_animation.texture = self.loading_animation_texture
             self.loading_animation.trigger_full_render()
         else:
