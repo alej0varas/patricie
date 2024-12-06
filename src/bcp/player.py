@@ -26,16 +26,12 @@ class BackgroundTaskRunner(threading.Thread):
         self.tasks.insert(0, (name, args))
 
     def do_task(self):
-        while self.working:
-            pass
         if not self.tasks:
             return
         task_to_run, task_to_run_args = self.tasks.pop()
         if task_to_run:
             self.working = True
             getattr(self, task_to_run)(*task_to_run_args)
-            self.task_to_run = None
-            self.task_to_run_args = None
             self.working = False
 
 
@@ -74,6 +70,8 @@ class Player(BackgroundTaskRunner):
             self.setup(url)
             self.get_next_track()
         while not self.media_player:
+            if not self.running:
+                return
             if self.track and self.skip_cached and self.track["cached"]:
                 _log("Skipping track", self.track["title"])
                 self.get_next_track()
