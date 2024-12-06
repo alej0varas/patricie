@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunsplit
 
 import dotenv
 from bs4 import BeautifulSoup
@@ -33,9 +33,6 @@ http_session = utils.Session()
 
 
 def get_band(url):
-    # ensure url ends in '/music' some band pages redirect to an album
-    # or track when ther's no path.
-    url = urlunparse(urlparse(url)._replace(path="music"))
     r = dict()
     r["albums_urls"] = _get_albums_urls_from_url(url)
     r["albums"] = r["albums_urls"]
@@ -174,13 +171,22 @@ def _get_url_type(url):
     return result
 
 
-def _validate_url(url):
+def validate_url(url):
     parsed_url = urlparse(url)
-    domain = parsed_url.netloc.split(".")
-    if len(domain) < 3:
+    domain = parsed_url.netloc
+    domain_list = domain.split(".")
+    if len(domain_list) < 3:
         raise ValueError("No band subdomain")
-    if (domain[1], domain[2]) not in (("bandcamp", "com"), ("bcbits", "com")):
+    if (domain_list[1], domain_list[2]) not in (("bandcamp", "com"), ("bcbits", "com")):
         raise ValueError("Not a bandcamp URL")
-    if parsed_url.scheme != "https":
-        raise ValueError("No https")
-    return url
+
+    scheme = parsed_url.scheme
+    if scheme != "https":
+        scheme = "https"
+
+    path = parsed_url.path
+    if not path or path != "/music":
+        path = "music"
+
+    newurl = urlunsplit((scheme, domain, path, "", ""))
+    return newurl
