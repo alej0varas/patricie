@@ -1,6 +1,7 @@
 :: spec fire generated using pyinstaller src/main.py --noconsole --name PatricieWindows --onefile --clean --add-data "assets:assets" --icon assets/patricie.ico
 :: before runing make.bat change to ...
 :: x:
+del dist\Patricie.exe
 rmdir /S /Q venvw
 Python.exe -m venv venvw
 venvw\Scripts\python.exe -m pip install --upgrade pip
