@@ -246,22 +246,6 @@ class Player(BackgroundTaskRunner):
             return "{title}".format(**self.track)
         return ""
 
-    def update(self):
-        track_index = self.track_index + 1
-        if (
-            not self.downloading
-            and self.track
-            and track_index < len(self.album["tracks"])
-            and not self.album["tracks"][track_index].get("path")
-            and self.track["duration"] - self.get_position() < 10
-        ):
-            self.downloading = True
-
-            self.album["tracks"][track_index] = bandcamplib.get_mp3(
-                self.album["tracks"][track_index]
-            )
-            self.downloading = False
-
     def quit(self):
         self.stop()
         self.running = False

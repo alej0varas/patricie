@@ -382,9 +382,6 @@ class MyView(arcade.View):
     def on_hide_view(self):
         self.ui.disable()
 
-    def on_update(self, time_delta):
-        self.player.update()
-
     def on_draw(self):
         self.clear()
         self.play_update_gui()
