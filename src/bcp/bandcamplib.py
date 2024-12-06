@@ -5,7 +5,6 @@ from urllib.parse import urlparse, urlunsplit
 
 import dotenv
 from bs4 import BeautifulSoup
-from platformdirs import user_data_dir
 from slugify import slugify
 
 from . import utils
@@ -20,11 +19,7 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
 
-USER_DATA_DIR = user_data_dir("patricie")
-_log("Root directory:", USER_DATA_DIR)
-if not os.path.exists(USER_DATA_DIR):
-    os.makedirs(USER_DATA_DIR)
-TRACKS_DIR = os.path.join(USER_DATA_DIR, "tracks")
+TRACKS_DIR = os.path.join(utils.USER_DATA_DIR, "tracks")
 _log("Traks directory:", TRACKS_DIR)
 if not os.path.exists(TRACKS_DIR):
     os.makedirs(TRACKS_DIR)

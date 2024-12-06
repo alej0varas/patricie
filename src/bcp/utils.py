@@ -8,13 +8,20 @@ from datetime import datetime
 from tkinter import Tk
 from urllib.error import HTTPError
 
+from platformdirs import user_data_dir
+
 from .log import get_loger
 
 DEBUG = os.environ.get("DEBUG", False)
-
 _log = get_loger(__name__)
+
 THROTTLE_TIME = (5, 15)
 _prev_call_time = datetime(year=2000, month=1, day=1)
+
+USER_DATA_DIR = user_data_dir("patricie")
+_log("Root directory:", USER_DATA_DIR)
+if not os.path.exists(USER_DATA_DIR):
+    os.makedirs(USER_DATA_DIR)
 
 
 def get_clipboad_content():
