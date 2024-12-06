@@ -50,12 +50,10 @@ class Session:
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
         content = None
         try:
-            with urllib.request.urlopen(url, context=context) as f:
+            # If a timeout is not set, it waits too long
+            with urllib.request.urlopen(url, context=context, timeout=30) as f:
                 content = f.read()
-        except HTTPError as e:
-            _log(f"failed to get url: {url}")
-            _log(f"error: {e.status}")
-        except http.client.IncompleteRead as e:
+        except (HTTPError, http.client.IncompleteRead, urllib.error.URLError, TimeoutError) as e:
             _log(f"failed to get url: {url}")
             _log(f"error: {e}")
         return content

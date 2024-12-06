@@ -72,8 +72,13 @@ def get_album(url):
 
 def get_mp3(track):
     track["path"] = _get_mp3_path(track)
-    cached = _get_mp3_file(track)
-    track["cached"] = cached
+    try:
+        track["cached"] = _download_mp3_file(track)
+        track["downloaded"] = True
+    except NoMP3ContentError as e:
+        _log(e)
+        track["cached"] = False
+        track["downloaded"] = False
     return track
 
 
@@ -145,14 +150,14 @@ class NoMP3ContentError(Exception):
     pass
 
 
-def _get_mp3_file(track):
+def _download_mp3_file(track):
     if os.path.exists(track["path"]):
         cached = True
     else:
         cached = False
         mp3_content = _fetch_url_content(track["url"])
-        if mp3_content is None:
-            raise NoMP3ContentError("Unable to get mp3 file")
+        if not mp3_content:
+            raise NoMP3ContentError("Unable to download mp3")
         with open(track["path"], "bw") as song_file:
             song_file.write(mp3_content)
     return cached

@@ -108,11 +108,9 @@ class Player(BackgroundTaskRunner):
         next_track = self.album["tracks"][self.track_index]
         _log("Next track:", next_track["title"])
         if not next_track.get("path"):  # track hasn't been downloaded
-            try:
-                next_track = bandcamplib.get_mp3(next_track)
-            except bandcamplib.NoMP3ContentError:
-                next_track = None
-        self.track = next_track
+            next_track = bandcamplib.get_mp3(next_track)
+        if next_track["downloaded"]:
+            self.track = next_track
 
     def get_media_player(self):
         if self.track is None:
