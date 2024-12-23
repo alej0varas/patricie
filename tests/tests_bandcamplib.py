@@ -33,22 +33,40 @@ class MainTests(unittest.TestCase):
         url = f"https://{constants.BC_BANDNAME}.bandcamp.com/music"
         bandcamplib._get_albums_urls_from_url(url)
 
-    def test_validate_url(self):
+
+class ValidateUrlTests(unittest.TestCase):
+    def test_no_band_subdomain(self):
         url = "https://bandcamp.com"
         with self.assertRaises(ValueError) as cm:
-            bandcamplib._validate_url(url)
-        self.assertEqual("No band subdomain", str(cm.exception))
+            bandcamplib.validate_url(url)
+        self.assertIn("Invalid domain", str(cm.exception))
 
+    def test_not_bandcamp_domain(self):
         url = "https://bandname.someothercamp.com"
         with self.assertRaises(ValueError) as cm:
-            bandcamplib._validate_url(url)
-        self.assertEqual("Not a bandcamp URL", str(cm.exception))
-        url = "http://bandname.bandcamp.com"
-        with self.assertRaises(ValueError) as cm:
-            bandcamplib._validate_url(url)
-        self.assertEqual("No https", str(cm.exception))
+            bandcamplib.validate_url(url)
+        self.assertIn("Not a bandcamp URL", str(cm.exception))
 
+    def test_not_cnd_domain(self):
         url = "https://t4.bc-not-bits.com/stream/"
         with self.assertRaises(ValueError) as cm:
-            bandcamplib._validate_url(url)
-        self.assertEqual("Not a bandcamp URL", str(cm.exception))
+            bandcamplib.validate_url(url)
+        self.assertIn("Not a bandcamp URL", str(cm.exception))
+
+    def test_fix_scheme_and_path(self):
+        url = "http://bandname.bandcamp.com"
+        new_url = bandcamplib.validate_url(url)
+        self.assertTrue(new_url.startswith("https"))
+        self.assertTrue(new_url.endswith("/music"))
+
+    def test_accept_bandname_only(self):
+        url = "justbandname"
+        new_url = bandcamplib.validate_url(url)
+        self.assertIn(bandcamplib.BANDCAMP_DOMAIN_SITE, new_url)
+        self.assertTrue(new_url.startswith("https"))
+        self.assertTrue(new_url.endswith("/music"))
+
+    def test_valid(self):
+        url = "https://bandname.bandcamp.com/music"
+        r = bandcamplib.validate_url(url)
+        self.assertEqual(url, r)

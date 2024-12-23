@@ -24,6 +24,10 @@ _log("Traks directory:", TRACKS_DIR)
 if not os.path.exists(TRACKS_DIR):
     os.makedirs(TRACKS_DIR)
 ENVIRONMENT_STR = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
+
+BANDCAMP_DOMAIN_SITE = "bandcamp.com"
+BANDCAMP_DOMAIN_CDN = "bcbits.com"
+
 http_session = utils.Session()
 
 
@@ -155,33 +159,23 @@ def _download_mp3_file(track):
     return cached
 
 
-def _get_url_type(url):
-    # return the first part of the url's path
-    # https://<bandname>.bandcamp.com/: music
-    # https://<bandname>.bandcamp.com/music: music
-    # https://<bandname>.bandcamp.com/album/<album-name>
-    # https://<bandname>.bandcamp.com/track/<track-name>: track
-    # https://.../stream/...: stream
-    result = urlparse(url).path.strip("/").split("/")[0]
-    return result
-
-
 def validate_url(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
-    domain_list = domain.split(".")
-    if len(domain_list) < 3:
-        raise ValueError("No band subdomain")
-    if (domain_list[1], domain_list[2]) not in (("bandcamp", "com"), ("bcbits", "com")):
-        raise ValueError("Not a bandcamp URL")
-
+    if not domain:
+        domain = f"{url}.{BANDCAMP_DOMAIN_SITE}"
+    if domain.count(".") != 2:
+        raise ValueError("Invalid domain", domain)
+    if ".".join(domain.split(".")[-2:]) not in (
+        BANDCAMP_DOMAIN_SITE,
+        BANDCAMP_DOMAIN_CDN,
+    ):
+        raise ValueError("Not a bandcamp URL", domain)
     scheme = parsed_url.scheme
     if scheme != "https":
         scheme = "https"
-
     path = parsed_url.path
     if not path or path != "/music":
         path = "music"
-
     newurl = urlunsplit((scheme, domain, path, "", ""))
     return newurl
