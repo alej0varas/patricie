@@ -160,6 +160,8 @@ def _download_mp3_file(track):
 
 
 def validate_url(url):
+    if not url:
+        raise ValueError("Invalid url", url)
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     if not domain:

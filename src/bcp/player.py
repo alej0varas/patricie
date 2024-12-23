@@ -256,3 +256,10 @@ class Player(BackgroundTaskRunner):
                 d += int(t["duration"])
             r = f"albums {len(self.band['albums'])} - current {self.album_index + 1} | album tracks {len(self.album['tracks'])} - current {self.track_index + 1} | album duration {timedelta(seconds=d)}"
         return r
+
+    def validate_url(self, url):
+        try:
+            return bandcamplib.validate_url(url)
+        except Exception as e:
+            _log(e)
+            return url

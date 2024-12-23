@@ -72,6 +72,8 @@ class MyView(arcade.View):
             height=height_url_input_text,
             texture=bg_tex,
             font_size=font_size_url_input_text,
+            text_color=arcade.color.BLACK,
+            caret_color=arcade.color.BLACK,
         )
         self.url_input_text.activate()
         self.url_input_text.text = url
@@ -326,26 +328,28 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
+            caret_position = self.url_input_text.caret.position
             new_url = ""
             action = None
             match key:
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
                         new_url = get_clipboad_content()
-                        _log("URL from clipboard", new_url)
+                        _log("URL from clipboard: ", new_url)
                 case arcade.key.ENTER:
-                    action = self.play_button.on_click()
-                    new_url = self.url_input_text.text
+                    action = self.play_button.on_click
                 case arcade.key.TAB:
                     self.url_input_text.deactivate()
                 case _:
                     if not modifiers & arcade.key.MOD_CTRL:
-                        _log("URL from input", self.url_input_text.text)
+                        _log("URL from input: ", self.url_input_text.text)
                         new_url = self.url_input_text.text
-            if new_url:
-                self.url_input_text.text = new_url.strip()
+            if not new_url:
+                new_url = self.url_input_text.text
+            self.url_input_text.text = self.player.validate_url(new_url.strip())
             if action:
                 action()
+            self.url_input_text.caret.position = caret_position
             return arcade.pyglet.event.EVENT_HANDLED
 
         match key:

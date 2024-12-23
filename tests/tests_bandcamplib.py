@@ -35,6 +35,12 @@ class MainTests(unittest.TestCase):
 
 
 class ValidateUrlTests(unittest.TestCase):
+    def test_empty_str(self):
+        url = ""
+        with self.assertRaises(ValueError) as cm:
+            bandcamplib.validate_url(url)
+        self.assertIn("Invalid url", str(cm.exception))
+
     def test_no_band_subdomain(self):
         url = "https://bandcamp.com"
         with self.assertRaises(ValueError) as cm:
