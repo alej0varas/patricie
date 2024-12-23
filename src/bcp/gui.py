@@ -48,9 +48,9 @@ class MyView(arcade.View):
 
         self.ui = arcade.gui.UIManager()
 
-        # url label, input text and loading animation
+        # url label, input text , load band button and loading animation
         self.first_grid = arcade.gui.UIGridLayout(
-            column_count=3,
+            column_count=4,
             row_count=1,
         )
         self.first_anchor = self.ui.add(arcade.gui.UIAnchorLayout())
@@ -78,6 +78,15 @@ class MyView(arcade.View):
         self.url_input_text.activate()
         self.url_input_text.text = url
 
+        self.load_band_button = arcade.gui.widgets.buttons.UITextureButton(
+            scale=scale,
+            texture=textures._play_normal_texture,
+            texture_hovered=textures._play_hover_texture,
+            texture_pressed=textures._play_press_texture,
+            texture_disabled=textures._play_disable_texture,
+        )
+        self.load_band_button.on_click = self.on_click_load_band
+
         self.loading_animation_image = arcade.load_image("assets/loading_note.png")
         self.loading_animation_texture = arcade.Texture(
             image=self.loading_animation_image
@@ -93,6 +102,7 @@ class MyView(arcade.View):
             col_num=1,
             row_num=0,
         )
+        self.first_grid.add(self.load_band_button, col_num=3, row_num=0)
         self.first_grid.add(self.loading_animation, col_num=2, row_num=0)
 
         # buttons grid
@@ -270,10 +280,24 @@ class MyView(arcade.View):
         self.focus_set = dict()
         self.current_track_info = None
 
+    def on_click_load_band(self, *_):
+        if not self.url_input_text.text:
+            return
+        self.player.stop()
+        url = self.validate_url(self.url_input_text.text)
+        if url is None:
+            return
+        self.url_input_text.text = url
+        self.player.setup(self.url_input_text.text)
+        self.player.play()
+
     def on_click_play(self, *_):
         if not self.url_input_text.text:
             return
-        self.player.play(self.url_input_text.text)
+        if not self.player.is_setup:
+            self.on_click_load_band()
+            return
+        self.player.play()
 
     def on_click_next(self, *_):
         self.player.next()
@@ -284,21 +308,21 @@ class MyView(arcade.View):
         self.on_click_play()
 
     def play_update_gui(self):
-        if not self.player:
-            return
         if self.player.playing:
             self.play_button.disabled = True
             self.pause_button.disabled = False
         else:
             self.play_button.disabled = False
             self.pause_button.disabled = True
-        if hasattr(self.player, "media_player") and self.player.media_player:
+        if getattr(self.player, "media_player", False):
             self.next_button.disabled = False
         else:
             self.next_button.disabled = True
             if self.url_input_text.text:
+                self.load_band_button.disabled = False
                 self.play_button.disabled = False
             else:
+                self.load_band_button.disabled = True
                 self.play_button.disabled = True
 
         if self.player.get_volume() == 1.0:
@@ -328,7 +352,6 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
-            caret_position = self.url_input_text.caret.position
             new_url = ""
             action = None
             match key:
@@ -337,7 +360,7 @@ class MyView(arcade.View):
                         new_url = get_clipboad_content()
                         _log("URL from clipboard: ", new_url)
                 case arcade.key.ENTER:
-                    action = self.play_button.on_click
+                    action = self.load_band_button.on_click
                 case arcade.key.TAB:
                     self.url_input_text.deactivate()
                 case _:
@@ -346,10 +369,9 @@ class MyView(arcade.View):
                         new_url = self.url_input_text.text
             if not new_url:
                 new_url = self.url_input_text.text
-            self.url_input_text.text = self.player.validate_url(new_url.strip())
+            self.url_input_text.text = new_url.strip()
             if action:
                 action()
-            self.url_input_text.caret.position = caret_position
             return arcade.pyglet.event.EVENT_HANDLED
 
         match key:
@@ -386,9 +408,15 @@ class MyView(arcade.View):
     def on_hide_view(self):
         self.ui.disable()
 
+    def on_update(self, dt):
+        self.play_update_gui()
+
     def on_draw(self):
         self.clear()
-        self.play_update_gui()
+
+        self.useless_details.text = (
+            self.player.statistics() + " " + self.player.status_text
+        )
 
         if self.player.working:
             self.loading_animation.visible = True
@@ -414,9 +442,10 @@ class MyView(arcade.View):
             time_string = pos_string + " / " + dur_string
             self.text_time.text = time_string
 
-        self.useless_details.text = self.player.statistics()
-
         self.ui.draw()
+
+    def validate_url(self, url):
+        return self.player.validate_url(url.strip())
 
 
 def main(url="", fullscreen=False, skip_cached=False):

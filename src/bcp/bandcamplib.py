@@ -1,6 +1,7 @@
 import json
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlunsplit
 
 import dotenv
@@ -67,15 +68,16 @@ def get_album(url):
 
 
 def get_mp3(track):
-    track["path"] = _get_mp3_path(track)
-    try:
-        track["cached"] = _download_mp3_file(track)
-        track["downloaded"] = True
-    except NoMP3ContentError as e:
-        _log(e)
+    path = _get_mp3_path(track)
+    mp3_content = None
+    if not os.path.exists(path):
+        mp3_content = _fetch_url_content(track["url"])
+        with open(path, "bw") as song_file:
+            song_file.write(mp3_content)
         track["cached"] = False
-        track["downloaded"] = False
-    return track
+    else:
+        track["cached"] = True
+    track["path"] = path
 
 
 def _get_albums_urls_from_url(url):
@@ -131,8 +133,16 @@ def _get_tracks_from_html(html):
 
 
 def _fetch_url_content(url):
-    _log("Fetch url:", url)
-    content = http_session.get(url)
+    attempt, retries = (1, 3)
+    while attempt <= retries:
+        _log(f"Fetch url: {url} attempt: {attempt}")
+        content = http_session.get(url)
+        if content:
+            break
+        time.sleep(3 * attempt)
+        attempt += 1
+    else:
+        raise NoMP3ContentError("Unable to download mp3")
     return content
 
 
@@ -144,19 +154,6 @@ def _get_mp3_path(track):
 
 class NoMP3ContentError(Exception):
     pass
-
-
-def _download_mp3_file(track):
-    if os.path.exists(track["path"]):
-        cached = True
-    else:
-        cached = False
-        mp3_content = _fetch_url_content(track["url"])
-        if not mp3_content:
-            raise NoMP3ContentError("Unable to download mp3")
-        with open(track["path"], "bw") as song_file:
-            song_file.write(mp3_content)
-    return cached
 
 
 def validate_url(url):
@@ -181,3 +178,9 @@ def validate_url(url):
         path = "music"
     newurl = urlunsplit((scheme, domain, path, "", ""))
     return newurl
+
+
+def request_expired(obj):
+    if datetime.now() - obj["request_datetime"] > timedelta(minutes=10):
+        return True
+    return False
