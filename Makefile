@@ -2,6 +2,7 @@
 # `requests` because I wasn't able to avoid getting a HTTP 403.
 SHELL = /bin/bash
 
+all: prepare certificate pyinstall
 
 prepare:
 	rm -rf ~/venvl
