@@ -2,13 +2,17 @@
 # `requests` because I wasn't able to avoid getting a HTTP 403.
 SHELL = /bin/bash
 
+#
+# only for build (inside virtual machine)
+#
+
 all: prepare certificate pyinstall
 
 prepare:
 	rm -rf ~/venvl
 	python3 -m venv --copies ~/venvl
 	source ~/venvl/bin/activate
-	~/venvl/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+	~/venvl/bin/python -m pip install -r requirements-build.txt
 
 certificate:
 	mkdir --parents certifi
@@ -18,3 +22,20 @@ certificate:
 # pyinstaller src/main.py --name patricie --onefile --clean --add-data "assets:assets"
 pyinstall: certifi
 	~/venvl/bin/pyinstaller patricie-linux.spec
+
+#
+# end build
+#
+
+#
+# local
+#
+createvenv:
+	rm -rf venv
+	python -m venv --copies venv
+	source venv/bin/activate
+	pip install --upgrade pip
+	pip install -r requirements-dev.txt
+#
+# end local
+#

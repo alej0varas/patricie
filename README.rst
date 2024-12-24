@@ -20,38 +20,42 @@ The following disclaimer is intended to communicate certain limitations and cond
 By using this software, you agree to the terms of this disclaimer.
 
 
-Service providers supported and supported URLs
-----------------------------------------------
-
-1. **bandcamp.com**:
-
-   - https://<bandname>.bandcamp.com
-   - https://<bandname>.bandcamp.com/music
-   - https://<bandname>.bandcamp.com/album/<album-name>
-   - https://<bandname>.bandcamp.com/track/<track-name>
-
 Run (hypothetically)
 --------------------
+
 .. code-block:: shell
 
    # create an environment
-   python -m venv <environtment name>
-   source <environment name>/bin/activate
+   make createvenv
+
    #run code
-   python -m bcp.main URL
+   python src/main.py
 
 Build
 -----
-..code-block: shell
 
-   pyinstaller src/main.py --add-data "assets:assets" --onefile
+.. note::
+   this is thought to be run in a disposable environment, ie: a virtual machine
 
-TODO
-----
-- [ ] Handle artist url that redirects to album
-- [ ] Store last used volume
-- [ ] Store urls
-- [ ] Play from stored urls
-- [ ] Allow to set url on GUI
-- [ ] Store last played song and possition
-- [ ] Normalize URLs http to https and add trailing '/'
+Linux
+.....
+having source code root mounted as a shared folder in ~/patricie
+
+.. code-block:: shell
+
+   cd ~/patricie
+   make all
+
+now you can run the binary located in `dist/patricie`
+
+Windows
+.......
+
+having source code root mounted as shared folder X:, in shell:
+
+.. code-block:: shell
+
+   x:
+   make.bat
+
+now you can run the binary located in `dist\\Patricie.exe`

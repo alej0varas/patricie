@@ -11,3 +11,8 @@
 /.env
 /src/_constants.py
 /venvw/
+/certifi/
+/venvl/
+/.log.txt
+/project.org
+/README.html

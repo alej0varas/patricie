@@ -5,7 +5,7 @@ del dist\Patricie.exe
 rmdir /S /Q venvw
 Python.exe -m venv venvw
 venvw\Scripts\python.exe -m pip install --upgrade pip
-venvw\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+venvw\Scripts\python.exe -m pip install -r requirements-build.txt
 md certifi
 copy venvw\Lib\site-packages\certifi\cacert.pem certifi\
 venvw\Scripts\pyinstaller.exe "PatricieWindows.spec"
