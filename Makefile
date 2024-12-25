@@ -11,7 +11,6 @@ all: prepare certificate pyinstall
 prepare:
 	rm -rf ~/venvl
 	python3 -m venv --copies ~/venvl
-	source ~/venvl/bin/activate
 	~/venvl/bin/python -m pip install -r requirements-build.txt
 
 certificate:
@@ -33,9 +32,8 @@ pyinstall: certifi
 createvenv:
 	rm -rf venv
 	python -m venv --copies venv
-	source venv/bin/activate
-	pip install --upgrade pip
-	pip install -r requirements-dev.txt
+	./venv/bin/python -m pip install --upgrade pip
+	./venv/bin/python -m pip install -r requirements-dev.txt
 #
 # end local
 #
