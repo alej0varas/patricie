@@ -1,4 +1,3 @@
-import http.client
 import os
 import random
 import ssl
@@ -6,7 +5,6 @@ import time
 import urllib.request
 from datetime import datetime
 from tkinter import Tk
-from urllib.error import HTTPError
 
 from platformdirs import user_data_dir
 
@@ -22,6 +20,9 @@ USER_DATA_DIR = user_data_dir("patricie")
 _log("Root directory:", USER_DATA_DIR)
 if not os.path.exists(USER_DATA_DIR):
     os.makedirs(USER_DATA_DIR)
+TRACKS_DIR = os.path.join(USER_DATA_DIR, "tracks")
+if not os.path.exists(TRACKS_DIR):
+    os.makedirs(TRACKS_DIR)
 
 
 def get_clipboad_content():
@@ -48,19 +49,7 @@ class Session:
     """HTTP session like object created because using `requests` fails. I was not able to find the reason."""
 
     def get(self, url):
-        throttle()
-        content = self._fetch(url)
-        return content
-
-    def _fetch(self, url):
-        _log("Fetch url:", url)
+        _log("get url:", url)
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
-        content = None
-        try:
-            # If a timeout is not set, it waits too long
-            with urllib.request.urlopen(url, context=context, timeout=30) as f:
-                content = f.read()
-        except (HTTPError, http.client.IncompleteRead, urllib.error.URLError, TimeoutError) as e:
-            _log(f"failed to get url: {url}")
-            _log(f"error: {e}")
-        return content
+        # If a timeout is not set, it waits too long
+        return urllib.request.urlopen(url, context=context, timeout=30)

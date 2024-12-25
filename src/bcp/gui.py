@@ -30,7 +30,7 @@ class MyView(arcade.View):
         font_size_url_label = font_size_url_input_text * 1
         font_size_track_title = screen_height * 0.05
         font_size_track_album = font_size_track_title * 0.8
-        font_size_track_artist = font_size_track_title * 0.6
+        font_size_track_band = font_size_track_title * 0.6
         font_size_time = screen_height * 0.05
         margin_left = screen_width * 0.03
         margin_top = -screen_width * 0.02
@@ -205,10 +205,10 @@ class MyView(arcade.View):
             text_color=arcade.color.BLACK,
             font_size=font_size_track_album,
         )
-        self.text_track_artist = arcade.gui.UILabel(
+        self.text_track_band = arcade.gui.UILabel(
             " ",
             text_color=arcade.color.BLACK,
-            font_size=font_size_track_artist,
+            font_size=font_size_track_band,
         )
         self.third_grid.add(self.text_track_title, col_num=0, row_num=0)
         self.third_grid.add(
@@ -217,7 +217,7 @@ class MyView(arcade.View):
             row_num=1,
         )
         self.third_grid.add(
-            self.text_track_artist,
+            self.text_track_band,
             col_num=0,
             row_num=2,
         )
@@ -277,8 +277,6 @@ class MyView(arcade.View):
 
         self.player = Player(self.on_click_next, skip_cached)
         self.keys_held = dict()
-        self.focus_set = dict()
-        self.current_track_info = None
 
     def on_click_load_band(self, *_):
         if not self.url_input_text.text:
@@ -414,8 +412,12 @@ class MyView(arcade.View):
     def on_draw(self):
         self.clear()
 
-        self.useless_details.text = (
-            self.player.statistics() + " " + self.player.status_text
+        self.useless_details.text = " |".join(
+            (
+                self.player.statistics(),
+                self.player.info()["status"],
+                self.player.info()["error"],
+            )
         )
 
         if self.player.working:
@@ -429,18 +431,17 @@ class MyView(arcade.View):
         else:
             self.loading_animation.visible = False
 
-        if self.player.playing:
-            self.text_track_title.text = self.player.get_title()
-            self.text_track_album.text = self.player.get_album()
-            self.text_track_artist.text = self.player.get_artist()
+        self.text_track_title.text = self.player.info()["title"]
+        self.text_track_album.text = self.player.info()["album"]
+        self.text_track_band.text = self.player.info()["band"]
 
-            _time = self.player.get_position()
-            template = "{}"
-            pos_string = template.format(str(timedelta(seconds=int(_time)))[2:])
-            _time = self.player.get_duration()
-            dur_string = template.format(str(timedelta(seconds=int(_time)))[2:])
-            time_string = pos_string + " / " + dur_string
-            self.text_time.text = time_string
+        _time = self.player.info()["position"]
+        template = "{}"
+        pos_string = template.format(str(timedelta(seconds=int(_time)))[2:])
+        _time = self.player.info()["duration"]
+        dur_string = template.format(str(timedelta(seconds=int(_time)))[2:])
+        time_string = pos_string + " / " + dur_string
+        self.text_time.text = time_string
 
         self.ui.draw()
 

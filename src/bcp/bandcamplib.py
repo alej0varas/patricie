@@ -1,12 +1,11 @@
 import json
 import os
-import time
-from datetime import datetime, timedelta
+from http.client import IncompleteRead
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urlunsplit
 
 import dotenv
 from bs4 import BeautifulSoup
-from slugify import slugify
 
 from . import utils
 from .log import get_loger
@@ -20,12 +19,6 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
 
-TRACKS_DIR = os.path.join(utils.USER_DATA_DIR, "tracks")
-_log("Traks directory:", TRACKS_DIR)
-if not os.path.exists(TRACKS_DIR):
-    os.makedirs(TRACKS_DIR)
-ENVIRONMENT_STR = f"_{ENVIRONMENT}" if ENVIRONMENT else ""
-
 BANDCAMP_DOMAIN_SITE = "bandcamp.com"
 BANDCAMP_DOMAIN_CDN = "bcbits.com"
 
@@ -33,127 +26,92 @@ http_session = utils.Session()
 
 
 def get_band(url):
-    r = dict()
-    r["albums_urls"] = _get_albums_urls_from_url(url)
-    r["albums"] = r["albums_urls"]
+    html = _fetch_url(url)
+    soup = BeautifulSoup(html, "html.parser")
+    albums_urls = _to_full_url(_get_albums_urls(html), url)
+    name = soup.find("meta", property="og:title").get("content")
+    r = {
+        "name": name,
+        "url": soup.find("meta", property="og:url").get("content"),
+        "description": soup.find("meta", property="og:description").get("content"),
+        "albums_urls": albums_urls,
+    }
     return r
 
 
 def get_album(url):
-    r = dict()
-    html = _fetch_url_content(url)
-    tracks = _get_tracks_from_html(html)
-    t = list()
-    _log("Loaded tracks:", len(tracks))
-    for track in tracks:
-        parsed_url = urlparse(url)
-        artist = parsed_url.netloc.split(".")[0]
-        album = parsed_url.path.split("/")[2]
-        album_path = os.path.join(TRACKS_DIR, artist, album)
-        if not os.path.isdir(album_path):
-            os.makedirs(album_path)
-        _log("    ", track["title"])
-        track.update(
-            {
-                "artist": artist,
-                "album": album,
-                "title": track["title"],
-                "album_path": album_path,
-            }
-        )
-        t.append(track)
-    r["tracks"] = t
-    r["request_datetime"] = datetime.now()
+    html = _fetch_url(url)
+    soup = BeautifulSoup(html, "html.parser")
+    tracks_urls = _to_full_url(_get_tracks_urls(soup), url)
+    name = soup.find(id="name-section").h2.text.strip()
+    r = {"name": name, "tracks_urls": tracks_urls}
     return r
 
 
-def get_mp3(track):
-    path = _get_mp3_path(track)
-    mp3_content = None
-    if not os.path.exists(path):
-        mp3_content = _fetch_url_content(track["url"])
-        with open(path, "bw") as song_file:
-            song_file.write(mp3_content)
-        track["cached"] = False
-    else:
-        track["cached"] = True
-    track["path"] = path
-
-
-def _get_albums_urls_from_url(url):
-    albums_urls = list()
-    music_html = _fetch_url_content(url)
-    albums_urls_path = _get_albums_urls_from_html(music_html)
-
-    parsed_url = urlparse(url)
-    _log("Loaded albums", len(albums_urls_path))
-    for album_url_path in albums_urls_path:
-        album_url = parsed_url._replace(path=album_url_path).geturl()
-        albums_urls.append(album_url)
-        _log("    ", album_url)
-    return albums_urls
-
-
-def _get_albums_urls_from_html(html):
-    soup = BeautifulSoup(html, "html.parser")
-    ol_tag = soup.find("ol", id="music-grid")
-    if ol_tag is None:
-        return list()
-    hrefs = list()
-    if ol_tag.get("data-client-items"):
-        _log("Album URLs obtained from data attribute")
-        hrefs = [i["page_url"] for i in json.loads(ol_tag["data-client-items"])]
-    else:
-        _log("Album URLs obtained from li href")
-        hrefs = [li.find("a")["href"] for li in ol_tag.find_all("li")]
+def _to_full_url(paths, base):
     r = list()
-    for href in hrefs:
-        # bandcamp.com now includes tracks in the band page, before it
-        # was only albums, so we have to filter them out.
-        if href.startswith("/album/"):
-            r.append(href)
-    _log("Loaded items count:", len(r))
+    parsed_url = urlparse(base)
+    for path in paths:
+        r.append(parsed_url._replace(path=path).geturl())
     return r
 
 
-def _get_tracks_from_html(html):
-    tracks = list()
+def get_track(url):
+    html = _fetch_url(url)
     soup = BeautifulSoup(html, "html.parser")
-    for script in soup.find_all("script"):
-        if script.has_attr("data-tralbum"):
-            for track in json.loads(script["data-tralbum"])["trackinfo"]:
-                if track["id"] and track["file"]:
-                    info = {
-                        "url": track["file"]["mp3-128"],
-                        "title": track["title"],
-                        "duration": track["duration"],
-                    }
-                    tracks.append(info)
-    return tracks
+    data = json.loads(soup.find("script", attrs={"data-tralbum": True})["data-tralbum"])
+    r = {
+        "url": data["url"],
+        "artist": data["artist"],
+        "file": data["trackinfo"][0]["file"]["mp3-128"],
+        "title": data["trackinfo"][0]["title"],
+        "duration": data["trackinfo"][0]["duration"],
+        "lyrics": data["trackinfo"][0]["lyrics"],
+    }
+    return r
 
 
-def _fetch_url_content(url):
-    attempt, retries = (1, 3)
-    while attempt <= retries:
-        _log(f"Fetch url: {url} attempt: {attempt}")
-        content = http_session.get(url)
-        if content:
-            break
-        time.sleep(3 * attempt)
-        attempt += 1
-    else:
-        raise NoMP3ContentError("Unable to download mp3")
+def get_mp3(url):
+    # TODO: this could be done on the client now?
+    content = _fetch_url(url)
     return content
 
 
-def _get_mp3_path(track):
-    title = slugify(track["title"])
-    mp3_path = os.path.join(track["album_path"], title + ".mp3")
-    return mp3_path
+def _get_albums_urls(html):
+    # bandcamp.com now includes tracks in the band page, before it
+    # was only albums, so we have to filter them out.
+    def is_album(href):
+        return href and href.startswith("/album/")
+
+    soup = BeautifulSoup(html, "html.parser")
+    r = [i["href"] for i in soup.find_all(href=is_album)]
+    return r
 
 
-class NoMP3ContentError(Exception):
-    pass
+def _get_tracks_urls(soup):
+    tracks = list()
+    for div in soup.find_all("div", "title"):
+        tracks.append(div.find("a")["href"])
+    return tracks
+
+
+def _fetch_url(url):
+    try:
+        with http_session.get(url) as response:
+            new_url = response.geturl()
+            if url != new_url:
+                # we don't know in which cases bandcamp redirecs so we
+                # don't know what to do in case it happens
+                raise DownloadNoRetryError(f"The request redirected to {new_url}")
+            content = response.read()
+    except HTTPError as e:
+        code = e.file.code
+        if 400 <= code < 500:
+            raise DownloadNoRetryError("Unavailable url ({code})")
+        raise DownloadRetryError(f"Internet connection or server issue ({code})")
+    except (IncompleteRead, URLError, TimeoutError) as e:
+        raise DownloadRetryError(f"Internet connection or server issue ({e})")
+    return content
 
 
 def validate_url(url):
@@ -165,10 +123,7 @@ def validate_url(url):
         domain = f"{url}.{BANDCAMP_DOMAIN_SITE}"
     if domain.count(".") != 2:
         raise ValueError("Invalid domain", domain)
-    if ".".join(domain.split(".")[-2:]) not in (
-        BANDCAMP_DOMAIN_SITE,
-        BANDCAMP_DOMAIN_CDN,
-    ):
+    if ".".join(domain.split(".")[-2:]) != BANDCAMP_DOMAIN_SITE:
         raise ValueError("Not a bandcamp URL", domain)
     scheme = parsed_url.scheme
     if scheme != "https":
@@ -180,7 +135,9 @@ def validate_url(url):
     return newurl
 
 
-def request_expired(obj):
-    if datetime.now() - obj["request_datetime"] > timedelta(minutes=10):
-        return True
-    return False
+class DownloadRetryError(Exception):
+    pass
+
+
+class DownloadNoRetryError(Exception):
+    pass
