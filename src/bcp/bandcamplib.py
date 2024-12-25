@@ -4,17 +4,12 @@ from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urlunsplit
 
-import dotenv
 from bs4 import BeautifulSoup
 
 from . import utils
 from .log import get_loger
 
-dotenv.load_dotenv()
 _log = get_loger(__name__)
-
-
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "")
 
 # Suppress AlsoFT messages because they bother me
 os.environ["ALSOFT_LOGLEVEL"] = "0"
