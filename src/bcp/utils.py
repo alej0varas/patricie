@@ -1,3 +1,4 @@
+import tempfile
 import os
 import random
 import ssl
@@ -16,10 +17,14 @@ _log = get_loger(__name__)
 THROTTLE_TIME = (5, 15)
 _prev_call_time = datetime(year=2000, month=1, day=1)
 
-USER_DATA_DIR = user_data_dir("patricie")
-_log("Root directory:", USER_DATA_DIR)
+NAME = "patricie"
+if DEBUG:
+    USER_DATA_DIR = os.path.join(tempfile.gettempdir(), NAME)
+else:
+    USER_DATA_DIR = user_data_dir(NAME)
 if not os.path.exists(USER_DATA_DIR):
     os.makedirs(USER_DATA_DIR)
+_log("root directory:", USER_DATA_DIR)
 TRACKS_DIR = os.path.join(USER_DATA_DIR, "tracks")
 if not os.path.exists(TRACKS_DIR):
     os.makedirs(TRACKS_DIR)
