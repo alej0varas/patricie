@@ -20,6 +20,18 @@ The following disclaimer is intended to communicate certain limitations and cond
 By using this software, you agree to the terms of this disclaimer.
 
 
+Download
+--------
+
+- Windows: Choose `Patricie.exe`
+- GNU/Linux: Choose `patricie`
+
+`Download page <https://github.com/alej0varas/patricie/releases/latest>`_
+
+.. note::
+   Anti virus: I've only tried AVG. By default it puts the file in quarantine without asking :/
+
+
 Run (hypothetically)
 --------------------
 

@@ -1,3 +1,4 @@
+from fake_useragent import UserAgent
 import tempfile
 import os
 import random
@@ -51,10 +52,17 @@ def throttle():
 
 
 class Session:
-    """HTTP session like object created because using `requests` fails. I was not able to find the reason."""
+    """I'm not using `requests` library because i get 403. i tried
+    setting 'User-Agent' and other headers but it doesn't work.
+
+    """
 
     def get(self, url):
         _log("get url:", url)
+        request = urllib.request.Request(url)
+        # for some band urls not using a user agent makes bandcamp redirect
+        ua = UserAgent(platforms=['desktop'])
+        request.add_header("User-Agent", ua.random)
         context = ssl.create_default_context(cafile="certifi/cacert.pem")
         # If a timeout is not set, it waits too long
-        return urllib.request.urlopen(url, context=context, timeout=30)
+        return urllib.request.urlopen(request, context=context, timeout=30)

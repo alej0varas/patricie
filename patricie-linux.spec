@@ -1,6 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 # write runtime constants
+
+# write runtime constants
 import git
 
 _repo = git.Repo(search_parent_directories=True)
@@ -10,7 +12,16 @@ with open("src/_constants.py", "w") as f:
     f.write(f'COMMIT_SHA = "{_commit_sha[:8]}"\n')
 # end constants
 
-datas = [("assets", "assets"), ("certifi", "certifi")]
+
+datas = [
+    ("assets", "assets"),
+    (
+        "../venvl/lib/python3.10/site-packages/fake_useragent/data/browsers.jsonl",
+        "fake_useragent/data",
+    ),
+    # required by urllib
+    ("../venvl/lib/python3.10/site-packages/certifi/cacert.pem", "certifi"),
+]
 
 a = Analysis(
     ["src/main.py", "src/_constants.py"],

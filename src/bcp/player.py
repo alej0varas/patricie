@@ -50,10 +50,10 @@ class Player(BackgroundTaskRunner):
 
     def __init__(self, handler_music_over, skip_cached=False):
         super().__init__()
+        self.status_text = "Ready"
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
         self.is_setup = False
-
         self.downloading = None
         self.playing = None
         self.current_sound = None
@@ -64,15 +64,14 @@ class Player(BackgroundTaskRunner):
         self.track_index = None
         self.track = None
         self.user_volume = None
-        self.status_text = None
 
         self.start()
 
     def setup(self, url):
-        self.status_text = "Loading band"
         self.task("do_setup", url)
 
     def do_setup(self, url):
+        self.status_text = "Loading band"
         self.is_setup = False
         self.url = url
         self.downloading = False
@@ -89,7 +88,6 @@ class Player(BackgroundTaskRunner):
         self.is_setup = True
 
     def play(self):
-        self.status_text = "Playing"
         self.task("do_play")
 
     def do_play(self):
@@ -106,6 +104,7 @@ class Player(BackgroundTaskRunner):
             self.get_media_player()
         self.media_player.play()
         self.fade_in(0.5)
+        self.status_text = "Playing"
         self.playing = True
 
     def get_next_track(self):
@@ -157,10 +156,10 @@ class Player(BackgroundTaskRunner):
         self.media_player.push_handlers(on_eos=self._handler_music_over)
 
     def pause(self):
-        self.status_text = "Pause"
         self.task("do_pause")
 
     def do_pause(self):
+        self.status_text = "Pause"
         if self.playing:
             self.fade_out(0.25)
             self.media_player.pause()
@@ -168,10 +167,10 @@ class Player(BackgroundTaskRunner):
             self.status_text = "Paused"
 
     def next(self):
-        self.status_text = "Next"
         self.task("do_next")
 
     def do_next(self):
+        self.status_text = "Next"
         self.get_next_track()
         self.stop()
         self.play()

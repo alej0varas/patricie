@@ -97,7 +97,9 @@ def _fetch_url(url):
             if url != new_url:
                 # we don't know in which cases bandcamp redirecs so we
                 # don't know what to do in case it happens
-                raise DownloadNoRetryError(f"The request redirected to {new_url}")
+                raise DownloadNoRetryError(
+                    f"The requested url {url} redirected to {new_url}"
+                )
             content = response.read()
     except HTTPError as e:
         code = e.file.code
