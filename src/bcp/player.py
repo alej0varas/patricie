@@ -1,5 +1,4 @@
 from datetime import timedelta
-import os
 import threading
 import time
 
@@ -37,8 +36,10 @@ class BackgroundTaskRunner(threading.Thread):
         self.working = True
         try:
             getattr(self, task_to_run)(*task_to_run_args)
+        except StopCurrentTaskExeption as e:
+            _log(f"task stopped {e}")
         except Exception as e:
-            _log(e)
+            _log('EXCEPTION CATCHED BY RUNNER', e)
             self.error = True
             self.tasks.clear()
         self.working = False
@@ -92,15 +93,20 @@ class Player(BackgroundTaskRunner):
 
     def do_play(self):
         if not self.album:
-            self.get_next_album()
+            try:
+                self.get_next_album()
+            except EndOfPlaylistException as e:
+                _log(e)
+                return
         if not self.track:
             self.get_next_track()
-        while not self.media_player:
+        if not self.media_player:
             if self.skip_cached and self.track.get("cached"):
                 _log("Skipping track: ", self.track["title"])
                 self.status_text = "Skipping track"
-                self.get_next_track()
-                continue
+                self.track = None
+                self.play()
+                return
             self.get_media_player()
         self.media_player.play()
         self.fade_in(0.5)
@@ -111,16 +117,16 @@ class Player(BackgroundTaskRunner):
         self.status_text = "Loading track"
         track_index = self.track_index + 1
         if track_index >= len(self.album["tracks_urls"]):
-            self.get_next_album()
-            self.get_next_track()
-            return
+            self.album = None
+            self.track = None
+            self.play()
+            raise StopCurrentTaskExeption('No more tracks in album')
         track = self.handle_call_to_bcl(
             bandcamplib.get_track, self.album["tracks_urls"][track_index]
         )
         track["album"] = self.album
         path = self._get_mp3_path(track)
-
-        if not os.path.exists(path):
+        if not path.exists():
             self.status_text = "Downloading mp3"
             content = self.handle_call_to_bcl(bandcamplib.get_mp3, track["file"])
             with open(path, "bw") as song_file:
@@ -136,16 +142,14 @@ class Player(BackgroundTaskRunner):
     def _get_mp3_path(self, track):
         band = slugify(track["album"]["band"]["name"])
         album = slugify(track["album"]["name"])
-        album_path = os.path.join(utils.TRACKS_DIR, band, album)
-        if not os.path.exists(album_path):
-            os.makedirs(album_path)
+        album_path = utils.TRACKS_DIR / band / album
+        if not album_path.exists():
+            album_path.mkdir(parents=True, exist_ok=True)
         title = slugify(track["title"])
-        path = os.path.join(album_path, title + ".mp3")
+        path = album_path / f"{title}.mp3"
         return path
 
     def get_media_player(self):
-        if self.track is None:
-            return
         try:
             self.current_sound = load_sound(self.track["path"], streaming=True)
         except FileNotFoundError as e:
@@ -171,7 +175,7 @@ class Player(BackgroundTaskRunner):
 
     def do_next(self):
         self.status_text = "Next"
-        self.get_next_track()
+        self.track = None
         self.stop()
         self.play()
 
@@ -179,8 +183,8 @@ class Player(BackgroundTaskRunner):
         self.status_text = "Loading album"
         album_index = self.album_index + 1
         if album_index >= len(self.band["albums_urls"]):
-            self.status_text = "End of playlist reached"
-            return
+            self.status_text = "End of playlist"
+            raise EndOfPlaylistException(self.status_text)
         self.album_index = album_index
         album_url = self.band["albums_urls"][self.album_index]
         album = self.handle_call_to_bcl(bandcamplib.get_album, album_url)
@@ -189,7 +193,7 @@ class Player(BackgroundTaskRunner):
         self.track_index = -1
 
     def next_album(self):
-        self.get_next_album()
+        self.album = None
         self.next()
 
     def stop(self):
@@ -315,7 +319,6 @@ class Player(BackgroundTaskRunner):
         attempt, retries = (1, 3)
         while attempt <= retries:
             _log(f"handle bcl call {attempt}")
-            utils.throttle()
             try:
                 return call(arg)
             except bandcamplib.DownloadNoRetryError as e:
@@ -365,3 +368,11 @@ class Player(BackgroundTaskRunner):
                     d += int(t["duration"])
                 r += f" | album duration {timedelta(seconds=d)}"
         return r
+
+
+class EndOfPlaylistException(Exception):
+    pass
+
+
+class StopCurrentTaskExeption(Exception):
+    pass

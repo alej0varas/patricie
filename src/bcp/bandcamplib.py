@@ -68,7 +68,8 @@ def get_track(url):
 
 def get_mp3(url):
     # TODO: this could be done on the client now?
-    content = _fetch_url(url)
+    with http_session.cache.disable() as c:
+        content = _fetch_url(url)
     return content
 
 

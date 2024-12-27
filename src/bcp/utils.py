@@ -1,13 +1,16 @@
-from fake_useragent import UserAgent
-import tempfile
+from contextlib import contextmanager
+import json
 import os
 import random
 import ssl
+import tempfile
 import time
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 from tkinter import Tk
 
+from fake_useragent import UserAgent
 from platformdirs import user_data_dir
 
 from .log import get_loger
@@ -20,15 +23,20 @@ _prev_call_time = datetime(year=2000, month=1, day=1)
 
 NAME = "patricie"
 if DEBUG:
-    USER_DATA_DIR = os.path.join(tempfile.gettempdir(), NAME)
+    USER_DATA_DIR = Path(tempfile.gettempdir()) / NAME
 else:
-    USER_DATA_DIR = user_data_dir(NAME)
-if not os.path.exists(USER_DATA_DIR):
-    os.makedirs(USER_DATA_DIR)
-_log("root directory:", USER_DATA_DIR)
-TRACKS_DIR = os.path.join(USER_DATA_DIR, "tracks")
-if not os.path.exists(TRACKS_DIR):
-    os.makedirs(TRACKS_DIR)
+    USER_DATA_DIR = Path(user_data_dir()) / NAME
+if not USER_DATA_DIR.exists():
+    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+_log("user data path:", USER_DATA_DIR)
+
+TRACKS_DIR = USER_DATA_DIR / "tracks"
+if not TRACKS_DIR.exists():
+    TRACKS_DIR.mkdir(parents=True, exist_ok=True)
+_log("tracks path:", TRACKS_DIR)
+
+CACHE_PATH = USER_DATA_DIR / 'cache.data'
+_log("cache path:", CACHE_PATH)
 
 
 def get_clipboad_content():
@@ -51,18 +59,126 @@ def throttle():
     _prev_call_time = datetime.now()
 
 
+class CacheableResponse:
+    """We want to serialize the content of http.client.HTTPResponse
+    object but `read` can be called only once, making the content
+    unavailable in the response object to be used later. This class
+    allows us to cache the request and return a compatible response
+    instance
+
+    """
+
+    def __init__(self):
+        self._original_url = None
+        self._returned_url = None
+        self._content = None
+
+    def from_response(self, url, response):
+        self._original_url = url
+        self._returned_url = response.geturl()
+        self._content = response.read().decode('utf-8')
+        return self
+
+    def from_cache(self, entry):
+        self._original_url = entry['original_url']
+        self._returned_url = entry['returned_url']
+        self._content = entry['content']
+        return self
+
+    def serialize(self):
+        return {'original_url': self._original_url, 'returned_url': self._returned_url, 'content': self._content}
+
+    def geturl(self):
+        return self._returned_url
+
+    def read(self):
+        return self._content.encode('utf-8')
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+
 class Session:
     """I'm not using `requests` library because i get 403. i tried
     setting 'User-Agent' and other headers but it doesn't work.
 
     """
 
+    def __init__(self):
+        self.cache = HTTPChache(CACHE_PATH)
+
     def get(self, url):
-        _log("get url:", url)
-        request = urllib.request.Request(url)
-        # for some band urls not using a user agent makes bandcamp redirect
-        ua = UserAgent(platforms=['desktop'])
-        request.add_header("User-Agent", ua.random)
-        context = ssl.create_default_context(cafile="certifi/cacert.pem")
-        # If a timeout is not set, it waits too long
-        return urllib.request.urlopen(request, context=context, timeout=30)
+        _log(f"http session get: {url}")
+        response = self.cache.get(url)
+        if not response:
+            throttle()
+            request = urllib.request.Request(url)
+            # for some band urls not using a user agent makes bandcamp redirect
+            ua = UserAgent(platforms=['desktop'])
+            request.add_header("User-Agent", ua.random)
+            context = ssl.create_default_context(cafile="certifi/cacert.pem")
+            # If a timeout is not set, it waits too long
+            r = urllib.request.urlopen(request, context=context, timeout=30)
+            response = self.cache.set(url, r)
+        return response
+
+
+class HTTPChache:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.items = dict()
+        self.disabled = False
+        if not self.path.exists():
+            _log('http cache file created')
+            self.path.touch()
+            self._write()
+        else:
+            _log('http cache file exists')
+            try:
+                self._read()
+            except json.decoder.JSONDecodeError as e:
+                _log(f'http cache file overwriten {e}')
+                self._write()
+                self.__init__(path)
+
+    def set(self, key, response):
+        _log(f'http cache set {key}')
+        if self.disabled:
+            return response
+        cacheable = CacheableResponse().from_response(key, response)
+        self.items[key] = cacheable.serialize()
+        self._write()
+        return cacheable
+
+    def get(self, key):
+        _log(f'http cache get {key}')
+        r = None
+        if self.disabled:
+            return r
+        self._read()
+        value = self.items.get(key)
+        if value:
+            r = CacheableResponse().from_cache(value)
+            _log(f'   hit {r.geturl()}')
+        return r
+
+    def _write(self):
+        _log('http cache write')
+        with open(CACHE_PATH, 'w') as f:
+            f.write(json.dumps(self.items))
+
+    def _read(self):
+        with open(CACHE_PATH, 'r') as f:
+            self.items = json.loads(f.read())
+        _log(f'http cache read {len(self.items)}')
+
+    @contextmanager
+    def disable(self):
+        try:
+            self.disabled = True
+            yield
+        finally:
+            self.disabled = False
