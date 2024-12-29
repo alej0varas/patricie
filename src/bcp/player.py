@@ -54,7 +54,7 @@ class Player(BackgroundTaskRunner):
         self.status_text = "Ready"
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
-        self.is_setup = False
+        self.is_setup = None
         self.downloading = None
         self.current_sound = None
         self.media_player = None
@@ -64,6 +64,7 @@ class Player(BackgroundTaskRunner):
         self.track_index = None
         self.track = None
         self.user_volume = None
+        self.continue_playing = None
 
         self.start()
 
@@ -72,7 +73,6 @@ class Player(BackgroundTaskRunner):
 
     def do_setup(self, url):
         self.status_text = "Loading band"
-        self.is_setup = False
         self.url = url
         self.downloading = False
         self.current_sound = None
@@ -83,7 +83,17 @@ class Player(BackgroundTaskRunner):
         self.track_index = -1
         self.track = None
         self.user_volume = self.user_volume or 100
+        self.continue_playing = False
+
         self.band = self.handle_call_to_bcl(bandcamplib.get_band, url)
+        # *temporary solution* i prefer to call this two methods
+        # instead of `play`. the idea is to separate loading a band
+        # from starting to play. in the future we'll show band
+        # information and albums and let the user choose to play or
+        # not.
+        self.get_next_album()
+        self.get_next_track()
+
         self.is_setup = True
 
     def play(self):
@@ -108,6 +118,7 @@ class Player(BackgroundTaskRunner):
             self.get_media_player()
         self.media_player.play()
         self.fade_in(0.5)
+        self.continue_playing = True
         self.status_text = "Playing"
 
     def get_next_track(self):
@@ -135,6 +146,7 @@ class Player(BackgroundTaskRunner):
         track["cached"] = cached
         self.track = track
         self.track_index = track_index
+        self.status_text = "Ready to play"
 
     def _get_mp3_path(self, track):
         band = slugify(track["album"]["band"]["name"])
@@ -164,6 +176,7 @@ class Player(BackgroundTaskRunner):
         if self.media_player:
             self.fade_out(0.25)
             self.media_player.pause()
+            self.continue_playing = False
             self.status_text = "Paused"
 
     def next(self):
@@ -172,8 +185,11 @@ class Player(BackgroundTaskRunner):
     def do_next(self):
         self.status_text = "Next"
         self.track = None
-        self.stop()
-        self.play()
+        self.fade_out()
+        self.clear_media_player_and_current_sound()
+        self.get_next_track()
+        if self.continue_playing:
+            self.play()
 
     def get_next_album(self):
         self.status_text = "Loading album"
@@ -193,10 +209,11 @@ class Player(BackgroundTaskRunner):
         self.next()
 
     def stop(self):
-        if not self.media_player:
-            return
-        if self.playing:
-            self.fade_out()
+        self.fade_out()
+        self.clear_media_player_and_current_sound()
+        self.continue_playing = False
+
+    def clear_media_player_and_current_sound(self):
         if self.current_sound and self.media_player:
             self.current_sound.stop(self.media_player)
             try:

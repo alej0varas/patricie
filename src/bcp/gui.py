@@ -287,19 +287,15 @@ class MyView(arcade.View):
             return
         self.url_input_text.text = url
         self.player.setup(self.url_input_text.text)
-        self.player.play()
 
     def on_click_play(self, *_):
         if not self.url_input_text.text:
             return
-        if not self.player.is_setup:
-            self.on_click_load_band()
-            return
-        self.player.play()
+        if self.player.is_setup:
+            self.player.play()
 
     def on_click_next(self, *_):
         self.player.next()
-        self.on_click_play()
 
     def on_click_next_album(self, *_):
         self.player.next_album()
