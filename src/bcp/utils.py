@@ -35,7 +35,7 @@ if not TRACKS_DIR.exists():
     TRACKS_DIR.mkdir(parents=True, exist_ok=True)
 _log("tracks path:", TRACKS_DIR)
 
-CACHE_PATH = USER_DATA_DIR / 'cache.data'
+CACHE_PATH = USER_DATA_DIR / "cache.data"
 _log("cache path:", CACHE_PATH)
 
 
@@ -76,23 +76,27 @@ class CacheableResponse:
     def from_response(self, url, response):
         self._original_url = url
         self._returned_url = response.geturl()
-        self._content = response.read().decode('utf-8')
+        self._content = response.read().decode("utf-8")
         return self
 
     def from_cache(self, entry):
-        self._original_url = entry['original_url']
-        self._returned_url = entry['returned_url']
-        self._content = entry['content']
+        self._original_url = entry["original_url"]
+        self._returned_url = entry["returned_url"]
+        self._content = entry["content"]
         return self
 
     def serialize(self):
-        return {'original_url': self._original_url, 'returned_url': self._returned_url, 'content': self._content}
+        return {
+            "original_url": self._original_url,
+            "returned_url": self._returned_url,
+            "content": self._content,
+        }
 
     def geturl(self):
         return self._returned_url
 
     def read(self):
-        return self._content.encode('utf-8')
+        return self._content.encode("utf-8")
 
     def __enter__(self):
         return self
@@ -117,7 +121,7 @@ class Session:
             throttle()
             request = urllib.request.Request(url)
             # for some band urls not using a user agent makes bandcamp redirect
-            ua = UserAgent(platforms=['desktop'])
+            ua = UserAgent(platforms=["desktop"])
             request.add_header("User-Agent", ua.random)
             context = ssl.create_default_context(cafile="certifi/cacert.pem")
             # If a timeout is not set, it waits too long
@@ -132,20 +136,20 @@ class HTTPChache:
         self.items = dict()
         self.disabled = False
         if not self.path.exists():
-            _log('http cache file created')
+            _log("http cache file created")
             self.path.touch()
             self._write()
         else:
-            _log('http cache file exists')
+            _log("http cache file exists")
             try:
                 self._read()
             except json.decoder.JSONDecodeError as e:
-                _log(f'http cache file overwriten {e}')
+                _log(f"http cache file overwriten {e}")
                 self._write()
                 self.__init__(path)
 
     def set(self, key, response):
-        _log(f'http cache set {key}')
+        _log(f"http cache set {key}")
         if self.disabled:
             return response
         cacheable = CacheableResponse().from_response(key, response)
@@ -154,7 +158,7 @@ class HTTPChache:
         return cacheable
 
     def get(self, key):
-        _log(f'http cache get {key}')
+        _log(f"http cache get {key}")
         r = None
         if self.disabled:
             return r
@@ -162,18 +166,18 @@ class HTTPChache:
         value = self.items.get(key)
         if value:
             r = CacheableResponse().from_cache(value)
-            _log(f'   hit {r.geturl()}')
+            _log(f"    hit {r.geturl()}")
         return r
 
     def _write(self):
-        _log('http cache write')
-        with open(CACHE_PATH, 'w') as f:
+        _log("    write")
+        with open(CACHE_PATH, "w") as f:
             f.write(json.dumps(self.items))
 
     def _read(self):
-        with open(CACHE_PATH, 'r') as f:
+        with open(CACHE_PATH, "r") as f:
             self.items = json.loads(f.read())
-        _log(f'http cache read {len(self.items)}')
+        _log(f"    read {len(self.items)}")
 
     @contextmanager
     def disable(self):

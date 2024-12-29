@@ -42,7 +42,7 @@ class BackgroundTaskRunner(threading.Thread):
         except StopCurrentTaskExeption as e:
             _log(f"task stopped {e}")
         except Exception as e:
-            _log('EXCEPTION CATCHED BY RUNNER', e)
+            _log("EXCEPTION CATCHED BY RUNNER", e)
             self.error = True
             self.tasks.clear()
         self.working = False
@@ -127,7 +127,7 @@ class Player:
             self.album = None
             self.track = None
             self.play()
-            raise StopCurrentTaskExeption('No more tracks in album')
+            raise StopCurrentTaskExeption("No more tracks in album")
         track = self.handle_call_to_bcl(
             bandcamplib.get_track, self.album["tracks_urls"][track_index]
         )
