@@ -306,28 +306,37 @@ class MyView(arcade.View):
         self.on_click_play()
 
     def play_update_gui(self):
-        if self.player.playing:
-            self.play_button.disabled = True
-            self.pause_button.disabled = False
+        # update buttons `disabled` attribute
+        # play
+        if self.player.ready_to_play:
+            if self.player.playing:
+                self.play_button.disabled = True
+            else:
+                self.play_button.disabled = False
         else:
-            self.play_button.disabled = False
+            self.play_button.disabled = True
+        # pause
+        if self.player.ready_to_play:
+            if self.player.playing:
+                self.pause_button.disabled = False
+            else:
+                self.pause_button.disabled = True
+        else:
             self.pause_button.disabled = True
-        if getattr(self.player, "media_player", False):
+        # next
+        if self.player.ready_to_play:
             self.next_button.disabled = False
         else:
             self.next_button.disabled = True
-            if self.url_input_text.text:
-                self.load_band_button.disabled = False
-                self.play_button.disabled = False
-            else:
-                self.load_band_button.disabled = True
-                self.play_button.disabled = True
 
-        if self.player.get_volume() == 1.0:
+        # volume up
+        if self.player.volume_max:
             self.vol_up_button.disabled = True
         else:
             self.vol_up_button.disabled = False
-        if self.player.get_volume() == 0.0:
+
+        # volume down
+        if self.player.volume_min:
             self.vol_down_button.disabled = True
         else:
             self.vol_down_button.disabled = False

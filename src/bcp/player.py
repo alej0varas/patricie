@@ -56,7 +56,6 @@ class Player(BackgroundTaskRunner):
         self.skip_cached = skip_cached
         self.is_setup = False
         self.downloading = None
-        self.playing = None
         self.current_sound = None
         self.media_player = None
         self.band = None
@@ -76,7 +75,6 @@ class Player(BackgroundTaskRunner):
         self.is_setup = False
         self.url = url
         self.downloading = False
-        self.playing = False
         self.current_sound = None
         self.media_player = None
         self.band = None
@@ -111,7 +109,6 @@ class Player(BackgroundTaskRunner):
         self.media_player.play()
         self.fade_in(0.5)
         self.status_text = "Playing"
-        self.playing = True
 
     def get_next_track(self):
         self.status_text = "Loading track"
@@ -164,10 +161,9 @@ class Player(BackgroundTaskRunner):
 
     def do_pause(self):
         self.status_text = "Pause"
-        if self.playing:
+        if self.media_player:
             self.fade_out(0.25)
             self.media_player.pause()
-            self.playing = False
             self.status_text = "Paused"
 
     def next(self):
@@ -201,21 +197,25 @@ class Player(BackgroundTaskRunner):
             return
         if self.playing:
             self.fade_out()
-        self.playing = False
         if self.current_sound and self.media_player:
             self.current_sound.stop(self.media_player)
             try:
                 self.media_player.pop_handlers()
             except Exception as e:
                 _log("Unable to pop handler", e)
-            del self.current_sound
-            del self.media_player
+            # in some cases, the GUI called `get_volume` and the
+            # `current_sound` attribute did not exist. that's why we
+            # set to None before we delete the object.
+            _ = self.current_sound
             self.current_sound = None
+            del _
+            _ = self.media_player
             self.media_player = None
+            del _
             self.status_text = "Stopped"
 
     def fade_in(self, duration=1.0):
-        if self.media_player:
+        if self.media_player and self.current_sound:
             new_vol = (
                 self.current_sound.get_volume(self.media_player)
                 + Player.VOLUME_DELTA_SMALL
@@ -266,34 +266,34 @@ class Player(BackgroundTaskRunner):
                 time.sleep(duration / 100)
 
     def get_volume(self):
-        if self.playing and self.media_player:
+        if self.current_sound and self.media_player and self.media_player.playing:
             return self.current_sound.get_volume(self.media_player)
         return 0.5
 
     def get_position(self):
         result = 0
-        if self.playing and self.media_player:
+        if self.current_sound and self.media_player:
             result = self.current_sound.get_stream_position(self.media_player)
         return result
 
     def get_duration(self):
         result = 0
-        if self.playing:
+        if self.track:
             result = self.track["duration"]
         return result
 
     def get_artist(self):
-        if self.playing:
+        if self.track:
             return "{artist}".format(**self.track)
         return ""
 
     def get_album(self):
-        if self.playing:
+        if self.track:
             return "{album}".format(**self.track)
         return ""
 
     def get_title(self):
-        if self.playing:
+        if self.track:
             return "{title}".format(**self.track)
         return ""
 
@@ -356,18 +356,33 @@ class Player(BackgroundTaskRunner):
         r = ""
         if self.band:
             r += f"albums: {len(self.band['albums_urls'])}"
-        if self.album:
             r += f" - current: {self.album_index + 1}"
-            r += f" | tracks: {len(self.album['tracks_urls'])}"
-            if self.track:
-                r += f" - current: {self.track_index + 1}"
-            tracks = self.album.get("tracks")
-            if tracks:
-                d = 0
-                for t in self.album.get("tracks"):
-                    d += int(t["duration"])
-                r += f" | album duration {timedelta(seconds=d)}"
+            if self.album:
+                r += f" | tracks: {len(self.album['tracks_urls'])}"
+            r += f" - current: {self.track_index + 1}"
+            if self.album:
+                tracks = self.album.get("tracks")
+                if tracks:
+                    d = 0
+                    for t in self.album.get("tracks"):
+                        d += int(t["duration"])
+                    r += f" | album duration {timedelta(seconds=d)}"
         return r
+
+    @property
+    def playing(self):
+        return bool(self.media_player and self.media_player.playing)
+
+    @property
+    def ready_to_play(self):
+        return bool(self.track)
+    @property
+    def volume_min(self):
+        return self.get_volume() == 0.0
+
+    @property
+    def volume_max(self):
+        return self.get_volume() == 1.0
 
 
 class EndOfPlaylistException(Exception):
