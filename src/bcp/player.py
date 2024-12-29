@@ -23,11 +23,14 @@ class BackgroundTaskRunner(threading.Thread):
         while self.running:
             if not self.working:
                 self.do_task()
-            time.sleep(1)
+            time.sleep(0.01)
 
-    def task(self, name, *args):
-        self.error = False
-        self.tasks.insert(0, (name, args))
+    def task(self, func):
+        def wrapper(*args, **kwargs):
+            self.error = False
+            self.tasks.insert(0, (func, args))
+
+        return wrapper
 
     def do_task(self):
         if not self.tasks:
@@ -35,7 +38,7 @@ class BackgroundTaskRunner(threading.Thread):
         task_to_run, task_to_run_args = self.tasks.pop()
         self.working = True
         try:
-            getattr(self, task_to_run)(*task_to_run_args)
+            task_to_run(*task_to_run_args)
         except StopCurrentTaskExeption as e:
             _log(f"task stopped {e}")
         except Exception as e:
@@ -45,12 +48,14 @@ class BackgroundTaskRunner(threading.Thread):
         self.working = False
 
 
-class Player(BackgroundTaskRunner):
+class Player:
     VOLUME_DELTA = 0.1
     VOLUME_DELTA_SMALL = 0.01
 
+    task_runner = BackgroundTaskRunner()
+
     def __init__(self, handler_music_over, skip_cached=False):
-        super().__init__()
+        self.task_runner.start()
         self.status_text = "Ready"
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
@@ -66,12 +71,8 @@ class Player(BackgroundTaskRunner):
         self.user_volume = None
         self.continue_playing = None
 
-        self.start()
-
+    @task_runner.task
     def setup(self, url):
-        self.task("do_setup", url)
-
-    def do_setup(self, url):
         self.status_text = "Loading band"
         self.url = url
         self.downloading = False
@@ -96,10 +97,8 @@ class Player(BackgroundTaskRunner):
 
         self.is_setup = True
 
+    @task_runner.task
     def play(self):
-        self.task("do_play")
-
-    def do_play(self):
         if not self.album:
             try:
                 self.get_next_album()
@@ -168,10 +167,8 @@ class Player(BackgroundTaskRunner):
         self.media_player = self.current_sound.play(volume=0)
         self.media_player.push_handlers(on_eos=self._handler_music_over)
 
+    @task_runner.task
     def pause(self):
-        self.task("do_pause")
-
-    def do_pause(self):
         self.status_text = "Pause"
         if self.media_player:
             self.fade_out(0.25)
@@ -179,10 +176,8 @@ class Player(BackgroundTaskRunner):
             self.continue_playing = False
             self.status_text = "Paused"
 
+    @task_runner.task
     def next(self):
-        self.task("do_next")
-
-    def do_next(self):
         self.status_text = "Next"
         self.track = None
         self.fade_out()
@@ -315,7 +310,7 @@ class Player(BackgroundTaskRunner):
         return ""
 
     def quit(self):
-        self.running = False
+        self.task_runner.running = False
         self.stop()
 
     def handle_call_to_bcl(self, call, arg):
@@ -364,7 +359,7 @@ class Player(BackgroundTaskRunner):
             "band": self.band and self.band["name"] or "",
             "position": self.get_position(),
             "duration": self.get_duration(),
-            "error": str(self.error),
+            "error": self.error,
             "status": str(self.status_text),
         }
         return d
@@ -393,6 +388,15 @@ class Player(BackgroundTaskRunner):
     @property
     def ready_to_play(self):
         return bool(self.track)
+
+    @property
+    def error(self):
+        return str(self.task_runner.error)
+
+    @property
+    def working(self):
+        return self.task_runner.working
+
     @property
     def volume_min(self):
         return self.get_volume() == 0.0
