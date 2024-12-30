@@ -86,8 +86,11 @@ def _get_albums_urls(html):
 
 def _get_tracks_urls(soup):
     tracks = list()
+    # some tracks don't have a link to the track page
     for div in soup.find_all("div", "title"):
-        tracks.append(div.find("a")["href"])
+        a = div.find("a")
+        if a:
+            tracks.append(a.get("href"))
     return tracks
 
 
