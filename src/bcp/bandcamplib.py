@@ -25,8 +25,10 @@ def get_band(url):
     soup = BeautifulSoup(html, "html.parser")
     albums_urls = _to_full_url(_get_albums_urls(html), url)
     name = soup.find("meta", property="og:title").get("content")
+    of_type = soup.find("meta", property="og:type").get("content")
     r = {
         "name": name,
+        'of_type': of_type,
         "url": soup.find("meta", property="og:url").get("content"),
         "description": soup.find("meta", property="og:description").get("content"),
         "albums_urls": albums_urls,
@@ -39,7 +41,8 @@ def get_album(url):
     soup = BeautifulSoup(html, "html.parser")
     tracks_urls = _to_full_url(_get_tracks_urls(soup), url)
     name = soup.find(id="name-section").h2.text.strip()
-    r = {"name": name, "tracks_urls": tracks_urls}
+    of_type = soup.find("meta", property="og:type").get("content")
+    r = {"name": name, 'of_type': of_type, "tracks_urls": tracks_urls}
     return r
 
 
@@ -59,8 +62,10 @@ def get_track(url):
     if not script:
         return 
     data = json.loads(script["data-tralbum"])
+    of_type = soup.find("meta", property="og:type").get("content")
     r = {
         "url": data["url"],
+        'of_type': of_type,
         "artist": data["artist"],
         "file": data["trackinfo"][0]["file"]["mp3-128"],
         "title": data["trackinfo"][0]["title"],

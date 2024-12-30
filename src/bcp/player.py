@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 import threading
 import time
@@ -48,6 +49,224 @@ class BackgroundTaskRunner(threading.Thread):
         self.working = False
 
 
+class Storage:
+    """Does:
+
+    - Read and write player related information to a file. The file
+    will contain information about bands, albums and tracks.
+
+    - Serialize to json and deserialize to a dict the information.
+
+    """
+
+    def __init__(self, path):
+        self.path = path
+        self.content_as_json = self.read()
+        self.content_as_dict = None
+
+    def read(self):
+        with open(self.path, "r") as f:
+            self.content_as_json = f.read()
+
+    def write(self):
+        with open(self.path, "a") as f:
+            f.write(self.as_json)
+
+    def update(self, content_as_dict):
+        self.content_as_dict = content_as_dict
+        self.write()
+
+    @property
+    def as_dict(self):
+        return json.loads(self.read())
+
+    @property
+    def as_json(self):
+        return json.dumps(self.content_as_dict)
+
+
+class ItemBase:
+    def __init__(self, content):
+        if content.get("type") != self.of_type:
+            raise ValueError(f"content type '{of_type}' is not '{self.of_type}'")
+        self.url = content.get("url")
+        if not self.url:
+            raise ValueError("no url found")
+        self.name = content.get("name")
+
+
+class ItemWithChildren:
+    def __init__(self):
+        self._children = dict()
+
+    def add_children(self, item):
+        if item.of_type != self.children_type:
+            raise ValueError(
+                f"item type '{item.of_type}' is not '{self.children_type}'"
+            )
+        if item.url not in self.children:
+            self.children[item.url] = item
+
+    def get_children(self, children_url):
+        return self.children.get(children_url)
+
+
+class ItemWithParent:
+    def __init__(self):
+        self._parent_obj = None
+
+    @property.getter
+    def parent(self):
+        return self._parent_obj
+
+    @parent.setter
+    def parent(self, item):
+        if item.of_type != self.parent_type:
+            raise ValueError(f"parent type {item.of_type} is not {self.parent_type}")
+        self._parent_obj = item
+
+
+band_type = "band"
+album_type = "album"
+track_type = "song"
+
+
+class Band(ItemBase, ItemWithChildren):
+    of_type = band_type
+    children_type = album_type
+
+    def __init__(self, content):
+        super().__init__(content)
+        ItemWithChildren.__init__(self)
+
+
+class Album(ItemBase, ItemWithChildren, ItemWithParent):
+    of_type = album_type
+    children_type = track_type
+    parent_type = band_type
+
+    def __init__(self, content):
+        super().__init__(content)
+        ItemWithChildren.__init__(self)
+        ItemWithParent.__init__(self)
+
+
+class Track(ItemBase, ItemWithParent):
+    of_type = track_type
+    parent_type = album_type
+
+    def __init__(self, content):
+        super().__init__(content)
+        ItemWithParent.__init__(self)
+
+
+class BandCamp:
+    item_types = {
+        band_type: {"class": Band, "method": bandcamplib.get_band},
+        album_type: {"class": Album, "method": bandcamplib.get_album},
+        track_type: {"class": Track, "method": bandcamplib.get_track},
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.storage = Storage(utils.STORAGE_PATH)
+        self.items = dict()
+        for k, v in self.storage.as_dict.items():
+            try:
+                item = self.create_item(v)
+            except ValueError as e:
+                print("bandcamp create_item", e)
+            else:
+                self.items[k] = item
+
+    def create_item(self, content):
+        of_type = content.get("type")
+        if of_type not in self.item_types.key():
+            raise ValueError(f"content type '{of_type}' is not valid")
+        item_class = self.item_types[of_type]
+        item_instance = item_class(content)
+        return item_instance
+
+    def get_band(self, url):
+        return self.get_item(url, band_type)
+
+    def get_album(self, url):
+        return self.get_item(url, album_type)
+
+    def get_track(self, url):
+        return self.get_item(url, track_type)
+
+    def get_mp3(self, track):
+        cached = True
+        path = self._get_mp3_path(track)
+        if not path.exists():
+            content, success, message = self.get_content(
+                bandcamplib.get_mp3, track["file"]
+            )
+            with open(path, "bw") as song_file:
+                song_file.write(content)
+                cached = False
+        return path, cached, success, message
+
+    def _get_mp3_path(self, track):
+        band = slugify(track["album"]["band"]["name"])
+        album = slugify(track["album"]["name"])
+        album_path = utils.TRACKS_DIR / band / album
+        if not album_path.exists():
+            album_path.mkdir(parents=True, exist_ok=True)
+        title = slugify(track["title"])
+        path = album_path / f"{title}.mp3"
+        return path
+
+    def get_item(self, url, of_type):
+        item = self.items.get(url)
+        if item:
+            return item
+
+        content, success, message = self.get_content(self.types[of_type]["method"], url)
+        item = self.create_item(content)
+        self.items[url] = item
+        self.storage.update(self.items)
+        return item, success, message
+
+    def get_content(self, method, url):
+        """i don't agree with this method but i can't figure out a
+        better way. the idea is to be able to:
+
+          - retry only when it's necesary . responsability of ?.
+            - yes for connection issues
+            - not for 40X or 30X
+          - have a informational message for te gui. responsability of
+            the player.
+          - return the content directly to the player. player don't
+            need to know about the response object. responsability of
+            BandCamp.
+          - don't repeat this validation code BandCamp for every call
+            to bandcamplib.
+
+        maybe it's ok and i'm just confused :/
+
+        """
+        content = None
+        success = False
+        message = ""
+        attempt, retries = (1, 3)
+        while attempt <= retries:
+            _log(f"handle bcl call {attempt}")
+            try:
+                content = method(url)
+                success = True
+            except bandcamplib.DownloadNoRetryError as e:
+                _log(e)
+                message = "Invalid url"
+            except bandcamplib.DownloadRetryError as e:
+                _log(e)
+                attempt += 1
+        else:
+            message = "Problem reaching server"
+        return content, success, message
+
+
 class Player:
     VOLUME_DELTA = 0.1
     VOLUME_DELTA_SMALL = 0.01
@@ -55,26 +274,12 @@ class Player:
     task_runner = BackgroundTaskRunner()
 
     def __init__(self, handler_music_over, skip_cached=False):
+        self.bandcamp = BandCamp()
         self.task_runner.start()
         self.status_text = "Ready"
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
         self.is_setup = None
-        self.downloading = None
-        self.current_sound = None
-        self.media_player = None
-        self.band = None
-        self.album_index = None
-        self.album = None
-        self.track_index = None
-        self.track = None
-        self.user_volume = None
-        self.continue_playing = None
-
-    @task_runner.task
-    def setup(self, url):
-        self.status_text = "Loading band"
-        self.url = url
         self.downloading = False
         self.current_sound = None
         self.media_player = None
@@ -86,7 +291,14 @@ class Player:
         self.user_volume = self.user_volume or 100
         self.continue_playing = False
 
-        self.band = self.handle_call_to_bcl(bandcamplib.get_band, url)
+    @task_runner.task
+    def setup(self, url):
+        self.status_text = "Loading band"
+        self.url = url
+        self.band, success, message = self.bandcamp.get_band(url)
+        self.status_text = message
+        if not success:
+            raise StopCurrentTaskExeption(message)
         # *temporary solution* i prefer to call this two methods
         # instead of `play`. the idea is to separate loading a band
         # from starting to play. in the future we'll show band
@@ -128,34 +340,20 @@ class Player:
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
-        track = self.handle_call_to_bcl(
-            bandcamplib.get_track, self.album["tracks_urls"][track_index]
+        track, success, message = self.bandcam.get_track(
+            self.album["tracks_urls"][track_index]
         )
         track["album"] = self.album
-        path = self._get_mp3_path(track)
-        if not path.exists():
-            self.status_text = "Downloading mp3"
-            content = self.handle_call_to_bcl(bandcamplib.get_mp3, track["file"])
-            with open(path, "bw") as song_file:
-                song_file.write(content)
-                cached = False
-        else:
-            cached = True
+        self.status_text = "Downloading mp3"
+        path, cached, success, message = self.bandcamp.get_mp3(track)
+        self.status_text = message
+        if not success:
+            raise StopCurrentTaskExeption(message)
         track["path"] = path
         track["cached"] = cached
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"
-
-    def _get_mp3_path(self, track):
-        band = slugify(track["album"]["band"]["name"])
-        album = slugify(track["album"]["name"])
-        album_path = utils.TRACKS_DIR / band / album
-        if not album_path.exists():
-            album_path.mkdir(parents=True, exist_ok=True)
-        title = slugify(track["title"])
-        path = album_path / f"{title}.mp3"
-        return path
 
     def get_media_player(self):
         try:
@@ -194,7 +392,10 @@ class Player:
             raise EndOfPlaylistException(self.status_text)
         self.album_index = album_index
         album_url = self.band["albums_urls"][self.album_index]
-        album = self.handle_call_to_bcl(bandcamplib.get_album, album_url)
+        album, success, message = self.bandcamp.get_album(album_url)
+        self.status_text = message
+        if not success:
+            raise StopCurrentTaskExeption(message)
         album["band"] = self.band
         self.album = album
         self.track_index = -1
@@ -312,38 +513,6 @@ class Player:
     def quit(self):
         self.task_runner.running = False
         self.stop()
-
-    def handle_call_to_bcl(self, call, arg):
-        """i don't agree with this method but i can't figure out a
-        better way. the idea is to be able to:
-
-          - retry only when it's necesary . responsability of the player.
-            - yes for connection issues
-            - not for 40X or 30X
-          - have a informational message for te gui. responsability of the player.
-          - return the content directly to the player. responsability of bandcamplib.
-          - don't repeat this validation code on the player for every call to bandcamplib.
-          - don't crash the player thread
-
-        maybe it's ok and i'm just confused :/
-
-        """
-        attempt, retries = (1, 3)
-        while attempt <= retries:
-            _log(f"handle bcl call {attempt}")
-            try:
-                return call(arg)
-            except bandcamplib.DownloadNoRetryError as e:
-                _log(e)
-                self.status_text = "Invalid url"
-                raise Exception(self.status_text)
-            except bandcamplib.DownloadRetryError as e:
-                _log(e)
-                self.status_text = "Trying to download again"
-                attempt += 1
-        else:
-            self.status_text = "Problem reaching server"
-            raise Exception(self.status_text)
 
     def validate_url(self, url):
         try:

@@ -35,8 +35,11 @@ if not TRACKS_DIR.exists():
     TRACKS_DIR.mkdir(parents=True, exist_ok=True)
 _log("tracks path:", TRACKS_DIR)
 
-CACHE_PATH = USER_DATA_DIR / "cache.data"
+CACHE_PATH = USER_DATA_DIR / "http_cache.json"
 _log("cache path:", CACHE_PATH)
+
+STORAGE_PATH = USER_DATA_DIR / "storage.json"
+_log("storage path:", STORAGE_PATH)
 
 
 def get_clipboad_content():
