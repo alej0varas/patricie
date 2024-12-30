@@ -1,51 +1,12 @@
-from datetime import timedelta
-import threading
 import time
 
 from arcade import load_sound
-from slugify import slugify
 
-from . import bandcamplib, utils
+from .bandcamp import BandCamp, EndOfPlaylistException
 from .log import get_loger
+from .utils import BackgroundTaskRunner, StopCurrentTaskExeption
 
 _log = get_loger(__name__)
-
-
-class BackgroundTaskRunner(threading.Thread):
-    def __init__(self):
-        super().__init__()
-        self.running = True
-        self.working = False
-        self.tasks = list()
-        self.error = False
-
-    def run(self):
-        while self.running:
-            if not self.working:
-                self.do_task()
-            time.sleep(0.01)
-
-    def task(self, func):
-        def wrapper(*args, **kwargs):
-            self.error = False
-            self.tasks.insert(0, (func, args))
-
-        return wrapper
-
-    def do_task(self):
-        if not self.tasks:
-            return
-        task_to_run, task_to_run_args = self.tasks.pop()
-        self.working = True
-        try:
-            task_to_run(*task_to_run_args)
-        except StopCurrentTaskExeption as e:
-            _log(f"task stopped {e}")
-        except Exception as e:
-            _log("EXCEPTION CATCHED BY RUNNER", e)
-            self.error = True
-            self.tasks.clear()
-        self.working = False
 
 
 class Player:
@@ -55,26 +16,12 @@ class Player:
     task_runner = BackgroundTaskRunner()
 
     def __init__(self, handler_music_over, skip_cached=False):
+        self.bandcamp = BandCamp()
         self.task_runner.start()
         self.status_text = "Ready"
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
         self.is_setup = None
-        self.downloading = None
-        self.current_sound = None
-        self.media_player = None
-        self.band = None
-        self.album_index = None
-        self.album = None
-        self.track_index = None
-        self.track = None
-        self.user_volume = None
-        self.continue_playing = None
-
-    @task_runner.task
-    def setup(self, url):
-        self.status_text = "Loading band"
-        self.url = url
         self.downloading = False
         self.current_sound = None
         self.media_player = None
@@ -83,10 +30,18 @@ class Player:
         self.album = None
         self.track_index = -1
         self.track = None
-        self.user_volume = self.user_volume or 100
+        self.user_volume = 100
         self.continue_playing = False
 
-        self.band = self.handle_call_to_bcl(bandcamplib.get_band, url)
+    @task_runner.task
+    def setup(self, url):
+        self.status_text = "Loading band"
+        self.url = url
+        try:
+            self.band = self.bandcamp.get_band(url)
+        except ValueError as e:
+            self.status_text = e
+            raise StopCurrentTaskExeption(self.status_text)
         # *temporary solution* i prefer to call this two methods
         # instead of `play`. the idea is to separate loading a band
         # from starting to play. in the future we'll show band
@@ -108,13 +63,13 @@ class Player:
         if not self.track:
             self.get_next_track()
         if not self.media_player:
-            if self.skip_cached and self.track.get("cached"):
-                _log("Skipping track: ", self.track["title"])
+            if self.skip_cached and self.track.cached:
+                _log("Skipping track: ", self.track.title)
                 self.status_text = "Skipping track"
                 self.track = None
                 self.play()
                 return
-            self.get_media_player()
+            self.get_media_player(self.bandcamp.get_absolute_path(self.track.path))
         self.media_player.play()
         self.fade_in(0.5)
         self.continue_playing = True
@@ -123,43 +78,26 @@ class Player:
     def get_next_track(self):
         self.status_text = "Loading track"
         track_index = self.track_index + 1
-        if track_index >= len(self.album["tracks_urls"]):
+        if track_index >= len(self.album.tracks_urls):
             self.album = None
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
-        track = self.handle_call_to_bcl(
-            bandcamplib.get_track, self.album["tracks_urls"][track_index]
+        track = self.bandcamp.get_track(
+            self.bandcamp.to_full_url(self.band, self.album.get_track_url(track_index))
         )
-        track["album"] = self.album
-        path = self._get_mp3_path(track)
-        if not path.exists():
-            self.status_text = "Downloading mp3"
-            content = self.handle_call_to_bcl(bandcamplib.get_mp3, track["file"])
-            with open(path, "bw") as song_file:
-                song_file.write(content)
-                cached = False
-        else:
-            cached = True
-        track["path"] = path
-        track["cached"] = cached
+        if track is None:
+            raise StopCurrentTaskExeption("cant load track")
+        track.album = self.album
+        track.path = str(self.bandcamp.get_mp3_path(track))
+        track.cached = self.bandcamp.download_mp3(track)
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"
 
-    def _get_mp3_path(self, track):
-        band = slugify(track["album"]["band"]["name"])
-        album = slugify(track["album"]["name"])
-        album_path = utils.TRACKS_DIR / band / album
-        if not album_path.exists():
-            album_path.mkdir(parents=True, exist_ok=True)
-        title = slugify(track["title"])
-        path = album_path / f"{title}.mp3"
-        return path
-
-    def get_media_player(self):
+    def get_media_player(self, path):
         try:
-            self.current_sound = load_sound(self.track["path"], streaming=True)
+            self.current_sound = load_sound(path, streaming=True)
         except FileNotFoundError as e:
             _log("Can't get media player: ", e)
             self.status_text = "Can't play this track"
@@ -183,24 +121,29 @@ class Player:
         self.fade_out()
         self.clear_media_player_and_current_sound()
         self.get_next_track()
+
         if self.continue_playing:
             self.play()
 
     def get_next_album(self):
         self.status_text = "Loading album"
         album_index = self.album_index + 1
-        if album_index >= len(self.band["albums_urls"]):
+        if album_index >= len(self.band.albums_urls):
             self.status_text = "End of playlist"
             raise EndOfPlaylistException(self.status_text)
         self.album_index = album_index
-        album_url = self.band["albums_urls"][self.album_index]
-        album = self.handle_call_to_bcl(bandcamplib.get_album, album_url)
-        album["band"] = self.band
+        album = self.bandcamp.get_album(
+            self.bandcamp.to_full_url(self.band, self.band.get_album_url(album_index))
+        )
+        if album is None:
+            raise StopCurrentTaskExeption("bandcamp get_mp3_path: cant get mp3")
         self.album = album
+        self.album.band = self.band
         self.track_index = -1
 
     def next_album(self):
         self.album = None
+        self.get_next_album()
         self.next()
 
     def stop(self):
@@ -291,7 +234,7 @@ class Player:
     def get_duration(self):
         result = 0
         if self.track:
-            result = self.track["duration"]
+            result = self.track.duration
         return result
 
     def get_artist(self):
@@ -313,50 +256,11 @@ class Player:
         self.task_runner.running = False
         self.stop()
 
-    def handle_call_to_bcl(self, call, arg):
-        """i don't agree with this method but i can't figure out a
-        better way. the idea is to be able to:
-
-          - retry only when it's necesary . responsability of the player.
-            - yes for connection issues
-            - not for 40X or 30X
-          - have a informational message for te gui. responsability of the player.
-          - return the content directly to the player. responsability of bandcamplib.
-          - don't repeat this validation code on the player for every call to bandcamplib.
-          - don't crash the player thread
-
-        maybe it's ok and i'm just confused :/
-
-        """
-        attempt, retries = (1, 3)
-        while attempt <= retries:
-            _log(f"handle bcl call {attempt}")
-            try:
-                return call(arg)
-            except bandcamplib.DownloadNoRetryError as e:
-                _log(e)
-                self.status_text = "Invalid url"
-                raise Exception(self.status_text)
-            except bandcamplib.DownloadRetryError as e:
-                _log(e)
-                self.status_text = "Trying to download again"
-                attempt += 1
-        else:
-            self.status_text = "Problem reaching server"
-            raise Exception(self.status_text)
-
-    def validate_url(self, url):
-        try:
-            return bandcamplib.validate_url(url)
-        except Exception as e:
-            self.status_text = "Invalid url"
-            _log(e)
-
     def info(self):
         d = {
-            "title": self.track and self.track["title"] or "",
-            "album": self.album and self.album["name"] or "",
-            "band": self.band and self.band["name"] or "",
+            "title": self.track and self.track.title or "",
+            "album": self.album and self.album.name or "",
+            "band": self.band and self.band.name or "",
             "position": self.get_position(),
             "duration": self.get_duration(),
             "error": self.error,
@@ -367,18 +271,13 @@ class Player:
     def statistics(self):
         r = ""
         if self.band:
-            r += f"albums: {len(self.band['albums_urls'])}"
+            r += f"albums: {len(self.band.albums_urls)}"
             r += f" - current: {self.album_index + 1}"
             if self.album:
-                r += f" | tracks: {len(self.album['tracks_urls'])}"
+                r += f" | tracks: {len(self.album.tracks_urls)}"
             r += f" - current: {self.track_index + 1}"
             if self.album:
-                tracks = self.album.get("tracks")
-                if tracks:
-                    d = 0
-                    for t in self.album.get("tracks"):
-                        d += int(t["duration"])
-                    r += f" | album duration {timedelta(seconds=d)}"
+                r += f" | album duration {self.album.duration}"
         return r
 
     @property
@@ -404,11 +303,3 @@ class Player:
     @property
     def volume_max(self):
         return self.get_volume() == 1.0
-
-
-class EndOfPlaylistException(Exception):
-    pass
-
-
-class StopCurrentTaskExeption(Exception):
-    pass
