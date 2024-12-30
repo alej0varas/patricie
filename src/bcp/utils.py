@@ -6,7 +6,7 @@ import ssl
 import tempfile
 import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Tk
 
@@ -131,6 +131,10 @@ class Session:
 
 
 class HTTPChache:
+    REQUEST_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+    # value choosed by sticking my finger in the wind ;)
+    REQUEST_EXPIRE_DAYS = 30
+
     def __init__(self, path):
         self.path = Path(path)
         self.items = dict()
@@ -153,7 +157,9 @@ class HTTPChache:
         if self.disabled:
             return response
         cacheable = CacheableResponse().from_response(key, response)
-        self.items[key] = cacheable.serialize()
+        item = cacheable.serialize()
+        item["request_datetime"] = datetime.now().strftime(self.REQUEST_DATETIME_FORMAT)
+        self.items[key] = item
         self._write()
         return cacheable
 
@@ -164,10 +170,21 @@ class HTTPChache:
             return r
         self._read()
         value = self.items.get(key)
+        if self._has_expired(value):
+            return r
         if value:
             r = CacheableResponse().from_cache(value)
             _log(f"    hit {r.geturl()}")
         return r
+
+    def _has_expired(self, value):
+        try:
+            request_datetime = value.get("request_datetime")
+        except (ValueError, TypeError) as e:
+            _log(f"    has_expired {e}")
+        if datetime.now() - timedelta(days=self.REQUEST_EXPIRE_DAYS) < request_datetime:
+            return False
+        return True
 
     def _write(self):
         _log("    write")
