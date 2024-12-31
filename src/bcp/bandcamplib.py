@@ -54,7 +54,11 @@ def _to_full_url(paths, base):
 def get_track(url):
     html = _fetch_url(url)
     soup = BeautifulSoup(html, "html.parser")
-    data = json.loads(soup.find("script", attrs={"data-tralbum": True})["data-tralbum"])
+    script = soup.find("script", attrs={"data-tralbum": True})
+    # happened only once, i wasn't able to reproduce
+    if not script:
+        return 
+    data = json.loads(script["data-tralbum"])
     r = {
         "url": data["url"],
         "artist": data["artist"],
