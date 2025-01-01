@@ -93,8 +93,6 @@ class Storage:
 
 class ItemBase:
     def __init__(self, url):
-        # if url is None:
-        #     raise ValueError("A url must be provided")
         self.url = url
 
     def update(self, content):
@@ -120,12 +118,6 @@ class ItemWithChildren:
             self.add_children(cc(c_url))
 
     def add_children(self, children):
-        # if children.of_type != self.children_type:
-        #     raise ValueError(
-        #         f"children type '{children.of_type}' is not '{self.children_type}'"
-        #     )
-        # if children.url not in self.children:
-        # remember children keys already exist, is it important ?
         self.children[children.url] = children
 
     def get_children(self, children_url):
@@ -164,7 +156,8 @@ class Band(ItemBase, ItemWithChildren):
 
     def to_dict(self):
         d = super().to_dict()
-        d["albums_urls"] = self.albums_urls
+        del d['children']
+
         return d
 
 
@@ -185,6 +178,13 @@ class Album(ItemBase, ItemWithChildren, ItemWithParent):
     @property
     def tracks(self):
         return self.children.values()
+
+
+    def to_dict(self):
+        d = super().to_dict()
+        del d['children']
+
+        return d
 
 
 class Track(ItemBase, ItemWithParent):
@@ -222,7 +222,6 @@ class BandCamp:
         for k, v in self.storage.as_dict.items():
             try:
                 item = self.create_item(k, v)
-                item.update(v)
             except ValueError as e:
                 _log("bandcamp create_item", e)
             else:
@@ -251,23 +250,27 @@ class BandCamp:
     def get_album(self, url):
         return self.get_item(url, album_type)
 
-    def get_track(self, url):
-        return self.get_item(url, track_type)
+    def get_track(self, url, album):
+        t = self.get_item(url, track_type)
+        t.album = album
+        path, cached = self.get_mp3_path(t)
+        t.path = str(path)
+        t.cached = cached
+        return t
 
     def get_mp3_path(self, track):
         path = self.build_track_path_name(track)
         cached = True
-        success = True
-        message = ''
         if not path.exists():
-            content, success, message = self.get_content(
+            content = self.get_content(
                 bandcamplib.get_mp3, track.mp3_url
             )
-            if success:
-                with open(path, "bw") as song_file:
-                    song_file.write(content)
-                    cached = False
-        return path, cached, success, message
+            if content is None:
+                raise StopCurrentTaskExeption('bandcamp get_mp3_path: cant get mp3')
+            with open(path, "bw") as song_file:
+                song_file.write(content)
+                cached = False
+        return path, cached
 
     def build_track_path_name(self, track):
         band = slugify(track.album.band.name)
@@ -280,20 +283,18 @@ class BandCamp:
         return path
 
     def get_item(self, url, of_type):
-        # item = self.items.get(url)
-        # success = True
-        # message = "item loaded"
-        # if item:
-        #     return item, success, message
+        item = self.items.get(url)
+        if item:
+            return item
 
-        content, success, message = self.get_content(
+        content = self.get_content(
             self.item_types[of_type]["method"], url
         )
 
         item = self.create_item(url, content)
         self.items[item.url] = item
         self.storage.update(self.items)
-        return item, success, message
+        return item
 
     def get_content(self, method, url):
         """i don't agree with this method but i can't figure out a
@@ -314,25 +315,22 @@ class BandCamp:
 
         """
         content = None
-        success = False
-        message = "Content loaded"
         attempt, retries = (1, 3)
         while attempt <= retries:
             _log(f"handle bcl call {attempt}")
             try:
                 content = method(url)
-                success = True
                 break
             except bandcamplib.DownloadNoRetryError as e:
                 _log(e)
-                message = "Invalid url"
                 break
             except bandcamplib.DownloadRetryError as e:
                 _log(e)
                 attempt += 1
         else:
-            message = "Problem reaching server"
-        return content, success, message
+            pass
+            # message = "Problem reaching server"
+        return content
 
     @classmethod
     def children_class(cls, obj):
@@ -367,12 +365,7 @@ class Player:
     def setup(self, url):
         self.status_text = "Loading band"
         self.url = url
-        # self.band = self.bandcamp.get_band(url)
-        self.band, success, message = self.bandcamp.get_band(url)
-
-        self.status_text = message
-        if not success:
-            raise StopCurrentTaskExeption(message)
+        self.band = self.bandcamp.get_band(url)
         # *temporary solution* i prefer to call this two methods
         # instead of `play`. the idea is to separate loading a band
         # from starting to play. in the future we'll show band
@@ -414,17 +407,12 @@ class Player:
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
-        track, success, message = self.bandcamp.get_track(
-            self.album.tracks_urls[track_index]
+        track = self.bandcamp.get_track(
+            self.album.tracks_urls[track_index], self.album
         )
+        if track is None:
+            raise StopCurrentTaskExeption('cant load track')
         track.album = self.album
-        self.status_text = "Downloading mp3"
-        path, cached, success, message = self.bandcamp.get_mp3_path(track)
-        self.status_text = message
-        if not success:
-            raise StopCurrentTaskExeption(message)
-        track.path = str(path)
-        track.cached = cached
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"
@@ -467,10 +455,9 @@ class Player:
             raise EndOfPlaylistException(self.status_text)
         self.album_index = album_index
         album_url = self.band.albums_urls[self.album_index]
-        album, success, message = self.bandcamp.get_album(album_url)
-        self.status_text = message
-        if not success:
-            raise StopCurrentTaskExeption(message)
+        album = self.bandcamp.get_album(album_url)
+        if album is None:
+            raise StopCurrentTaskExeption('bandcamp get_mp3_path: cant get mp3')
         self.album = album
         self.album.band = self.band
         self.track_index = -1
@@ -621,7 +608,7 @@ class Player:
                 if tracks:
                     d = 0
                     for t in tracks:
-                        d += int(t.duration)
+                        d += t.duration
                     r += f" | album duration {timedelta(seconds=d)}"
         return r
 
