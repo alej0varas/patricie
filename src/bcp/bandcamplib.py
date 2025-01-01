@@ -67,7 +67,7 @@ def get_track(url):
         "url": data["url"],
         'of_type': of_type,
         "artist": data["artist"],
-        "file": data["trackinfo"][0]["file"]["mp3-128"],
+        "mp3_url": data["trackinfo"][0]["file"]["mp3-128"],
         "title": data["trackinfo"][0]["title"],
         "duration": data["trackinfo"][0]["duration"],
         "lyrics": data["trackinfo"][0]["lyrics"],
@@ -117,7 +117,7 @@ def _fetch_url(url):
     except HTTPError as e:
         code = e.file.code
         if 400 <= code < 500:
-            raise DownloadNoRetryError("Unavailable url ({code})")
+            raise DownloadNoRetryError(f"Unavailable url ({code})")
         raise DownloadRetryError(f"Internet connection or server issue ({code})")
     except (IncompleteRead, URLError, TimeoutError) as e:
         raise DownloadRetryError(f"Internet connection or server issue ({e})")

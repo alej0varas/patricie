@@ -59,53 +59,74 @@ class Storage:
 
     """
 
-    def __init__(self, path):
+    def __init__(self, path, serializer):
         self.path = path
-        self.content_as_json = self.read()
-        self.content_as_dict = None
+        self.serializer = serializer
+        self.content_as_dict = dict()
+        if not path.exists():
+            path.touch()
+            self.write()
+        self.content_as_dict = dict()
+        try:
+            self.content_as_dict = self.read()
+        except json.decoder.JSONDecodeError as e:
+            _log(f"storage corrupted {e}")
+            self.write()
 
     def read(self):
         with open(self.path, "r") as f:
-            self.content_as_json = f.read()
+            return json.load(f)
 
     def write(self):
-        with open(self.path, "a") as f:
-            f.write(self.as_json)
+        with open(self.path, "w") as f:
+            json.dump(self.content_as_dict, f, default=self.serializer)
 
-    def update(self, content_as_dict):
-        self.content_as_dict = content_as_dict
+    def update(self, items):
+        self.content_as_dict = items
         self.write()
 
     @property
     def as_dict(self):
-        return json.loads(self.read())
-
-    @property
-    def as_json(self):
-        return json.dumps(self.content_as_dict)
+        self.content_as_dict = self.read()
+        return self.content_as_dict
 
 
 class ItemBase:
-    def __init__(self, content):
-        if content.get("type") != self.of_type:
-            raise ValueError(f"content type '{of_type}' is not '{self.of_type}'")
-        self.url = content.get("url")
-        if not self.url:
-            raise ValueError("no url found")
-        self.name = content.get("name")
+    def __init__(self, url):
+        # if url is None:
+        #     raise ValueError("A url must be provided")
+        self.url = url
+
+    def update(self, content):
+        for k, v in content.items():
+            setattr(self, k, v)
+
+    def to_dict(self):
+        d = dict()
+        for k, v in self.__dict__.items():
+            if k.startswith('_'):
+                continue
+            d[k] = v
+        return d
 
 
 class ItemWithChildren:
     def __init__(self):
-        self._children = dict()
+        self.children = dict()
 
-    def add_children(self, item):
-        if item.of_type != self.children_type:
-            raise ValueError(
-                f"item type '{item.of_type}' is not '{self.children_type}'"
-            )
-        if item.url not in self.children:
-            self.children[item.url] = item
+    def add_childrens(self, children_urls):
+        for c_url in children_urls:
+            cc = BandCamp.children_class(self)
+            self.add_children(cc(c_url))
+
+    def add_children(self, children):
+        # if children.of_type != self.children_type:
+        #     raise ValueError(
+        #         f"children type '{children.of_type}' is not '{self.children_type}'"
+        #     )
+        # if children.url not in self.children:
+        # remember children keys already exist, is it important ?
+        self.children[children.url] = children
 
     def get_children(self, children_url):
         return self.children.get(children_url)
@@ -115,7 +136,7 @@ class ItemWithParent:
     def __init__(self):
         self._parent_obj = None
 
-    @property.getter
+    @property
     def parent(self):
         return self._parent_obj
 
@@ -135,9 +156,16 @@ class Band(ItemBase, ItemWithChildren):
     of_type = band_type
     children_type = album_type
 
-    def __init__(self, content):
-        super().__init__(content)
+    def __init__(self, url):
+        super().__init__(url)
         ItemWithChildren.__init__(self)
+
+        self.name = ''
+
+    def to_dict(self):
+        d = super().to_dict()
+        d["albums_urls"] = self.albums_urls
+        return d
 
 
 class Album(ItemBase, ItemWithChildren, ItemWithParent):
@@ -145,19 +173,31 @@ class Album(ItemBase, ItemWithChildren, ItemWithParent):
     children_type = track_type
     parent_type = band_type
 
-    def __init__(self, content):
-        super().__init__(content)
+    def __init__(self, url):
+        super().__init__(url)
         ItemWithChildren.__init__(self)
         ItemWithParent.__init__(self)
+
+        self.name = ''
+
+        self.band = self.parent
+
+    @property
+    def tracks(self):
+        return self.children.values()
 
 
 class Track(ItemBase, ItemWithParent):
     of_type = track_type
     parent_type = album_type
 
-    def __init__(self, content):
-        super().__init__(content)
+    def __init__(self, url):
+        super().__init__(url)
         ItemWithParent.__init__(self)
+        self.duration = 0
+        self.title = ""
+        self.mp3_url = None
+        self.album = self.parent
 
 
 class BandCamp:
@@ -167,25 +207,43 @@ class BandCamp:
         track_type: {"class": Track, "method": bandcamplib.get_track},
     }
 
+    @classmethod
+    def items_serializer(_, obj):
+        if isinstance(obj, tuple([i["class"] for i in BandCamp.item_types.values()])):
+            return obj.to_dict()
+        raise TypeError(
+            f"Object of type {obj.__class__.__name__} is not JSON serializable"
+        )
+
     def __init__(self):
         super().__init__()
-        self.storage = Storage(utils.STORAGE_PATH)
+        self.storage = Storage(utils.STORAGE_PATH, self.items_serializer)
         self.items = dict()
         for k, v in self.storage.as_dict.items():
             try:
-                item = self.create_item(v)
+                item = self.create_item(k, v)
+                item.update(v)
             except ValueError as e:
-                print("bandcamp create_item", e)
+                _log("bandcamp create_item", e)
             else:
                 self.items[k] = item
+        # add parents to childrens?
+        # add childrens to parents?
 
-    def create_item(self, content):
-        of_type = content.get("type")
-        if of_type not in self.item_types.key():
-            raise ValueError(f"content type '{of_type}' is not valid")
-        item_class = self.item_types[of_type]
-        item_instance = item_class(content)
-        return item_instance
+    def create_item(self, url, content):
+        match content["of_type"]:
+            case Band.of_type:
+                item = Band(url)
+                item.add_childrens(content['albums_urls'])
+            case Album.of_type:
+                item = Album(url)
+                item.add_childrens(content['tracks_urls'])
+            case Track.of_type:
+                item = Track(url)
+            case _:
+                raise ValueError(f"content type `{content['of_type']}` is not valid")
+        item.update(content)
+        return item
 
     def get_band(self, url):
         return self.get_item(url, band_type)
@@ -196,36 +254,44 @@ class BandCamp:
     def get_track(self, url):
         return self.get_item(url, track_type)
 
-    def get_mp3(self, track):
+    def get_mp3_path(self, track):
+        path = self.build_track_path_name(track)
         cached = True
-        path = self._get_mp3_path(track)
+        success = True
+        message = ''
         if not path.exists():
             content, success, message = self.get_content(
-                bandcamplib.get_mp3, track["file"]
+                bandcamplib.get_mp3, track.mp3_url
             )
-            with open(path, "bw") as song_file:
-                song_file.write(content)
-                cached = False
+            if success:
+                with open(path, "bw") as song_file:
+                    song_file.write(content)
+                    cached = False
         return path, cached, success, message
 
-    def _get_mp3_path(self, track):
-        band = slugify(track["album"]["band"]["name"])
-        album = slugify(track["album"]["name"])
+    def build_track_path_name(self, track):
+        band = slugify(track.album.band.name)
+        album = slugify(track.album.name)
         album_path = utils.TRACKS_DIR / band / album
         if not album_path.exists():
             album_path.mkdir(parents=True, exist_ok=True)
-        title = slugify(track["title"])
+        title = slugify(track.title)
         path = album_path / f"{title}.mp3"
         return path
 
     def get_item(self, url, of_type):
-        item = self.items.get(url)
-        if item:
-            return item
+        # item = self.items.get(url)
+        # success = True
+        # message = "item loaded"
+        # if item:
+        #     return item, success, message
 
-        content, success, message = self.get_content(self.types[of_type]["method"], url)
-        item = self.create_item(content)
-        self.items[url] = item
+        content, success, message = self.get_content(
+            self.item_types[of_type]["method"], url
+        )
+
+        item = self.create_item(url, content)
+        self.items[item.url] = item
         self.storage.update(self.items)
         return item, success, message
 
@@ -249,22 +315,28 @@ class BandCamp:
         """
         content = None
         success = False
-        message = ""
+        message = "Content loaded"
         attempt, retries = (1, 3)
         while attempt <= retries:
             _log(f"handle bcl call {attempt}")
             try:
                 content = method(url)
                 success = True
+                break
             except bandcamplib.DownloadNoRetryError as e:
                 _log(e)
                 message = "Invalid url"
+                break
             except bandcamplib.DownloadRetryError as e:
                 _log(e)
                 attempt += 1
         else:
             message = "Problem reaching server"
         return content, success, message
+
+    @classmethod
+    def children_class(cls, obj):
+        return cls.item_types[obj.children_type]["class"]
 
 
 class Player:
@@ -288,14 +360,16 @@ class Player:
         self.album = None
         self.track_index = -1
         self.track = None
-        self.user_volume = self.user_volume or 100
+        self.user_volume = 100
         self.continue_playing = False
 
     @task_runner.task
     def setup(self, url):
         self.status_text = "Loading band"
         self.url = url
+        # self.band = self.bandcamp.get_band(url)
         self.band, success, message = self.bandcamp.get_band(url)
+
         self.status_text = message
         if not success:
             raise StopCurrentTaskExeption(message)
@@ -320,8 +394,8 @@ class Player:
         if not self.track:
             self.get_next_track()
         if not self.media_player:
-            if self.skip_cached and self.track.get("cached"):
-                _log("Skipping track: ", self.track["title"])
+            if self.skip_cached and self.track.cached:
+                _log("Skipping track: ", self.track.title)
                 self.status_text = "Skipping track"
                 self.track = None
                 self.play()
@@ -335,29 +409,29 @@ class Player:
     def get_next_track(self):
         self.status_text = "Loading track"
         track_index = self.track_index + 1
-        if track_index >= len(self.album["tracks_urls"]):
+        if track_index >= len(self.album.tracks_urls):
             self.album = None
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
-        track, success, message = self.bandcam.get_track(
-            self.album["tracks_urls"][track_index]
+        track, success, message = self.bandcamp.get_track(
+            self.album.tracks_urls[track_index]
         )
-        track["album"] = self.album
+        track.album = self.album
         self.status_text = "Downloading mp3"
-        path, cached, success, message = self.bandcamp.get_mp3(track)
+        path, cached, success, message = self.bandcamp.get_mp3_path(track)
         self.status_text = message
         if not success:
             raise StopCurrentTaskExeption(message)
-        track["path"] = path
-        track["cached"] = cached
+        track.path = str(path)
+        track.cached = cached
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"
 
     def get_media_player(self):
         try:
-            self.current_sound = load_sound(self.track["path"], streaming=True)
+            self.current_sound = load_sound(self.track.path, streaming=True)
         except FileNotFoundError as e:
             _log("Can't get media player: ", e)
             self.status_text = "Can't play this track"
@@ -381,23 +455,24 @@ class Player:
         self.fade_out()
         self.clear_media_player_and_current_sound()
         self.get_next_track()
+
         if self.continue_playing:
             self.play()
 
     def get_next_album(self):
         self.status_text = "Loading album"
         album_index = self.album_index + 1
-        if album_index >= len(self.band["albums_urls"]):
+        if album_index >= len(self.band.albums_urls):
             self.status_text = "End of playlist"
             raise EndOfPlaylistException(self.status_text)
         self.album_index = album_index
-        album_url = self.band["albums_urls"][self.album_index]
+        album_url = self.band.albums_urls[self.album_index]
         album, success, message = self.bandcamp.get_album(album_url)
         self.status_text = message
         if not success:
             raise StopCurrentTaskExeption(message)
-        album["band"] = self.band
         self.album = album
+        self.album.band = self.band
         self.track_index = -1
 
     def next_album(self):
@@ -492,7 +567,7 @@ class Player:
     def get_duration(self):
         result = 0
         if self.track:
-            result = self.track["duration"]
+            result = self.track.duration
         return result
 
     def get_artist(self):
@@ -523,9 +598,9 @@ class Player:
 
     def info(self):
         d = {
-            "title": self.track and self.track["title"] or "",
-            "album": self.album and self.album["name"] or "",
-            "band": self.band and self.band["name"] or "",
+            "title": self.track and self.track.title or "",
+            "album": self.album and self.album.name or "",
+            "band": self.band and self.band.name or "",
             "position": self.get_position(),
             "duration": self.get_duration(),
             "error": self.error,
@@ -536,17 +611,17 @@ class Player:
     def statistics(self):
         r = ""
         if self.band:
-            r += f"albums: {len(self.band['albums_urls'])}"
+            r += f"albums: {len(self.band.albums_urls)}"
             r += f" - current: {self.album_index + 1}"
             if self.album:
-                r += f" | tracks: {len(self.album['tracks_urls'])}"
+                r += f" | tracks: {len(self.album.tracks_urls)}"
             r += f" - current: {self.track_index + 1}"
             if self.album:
-                tracks = self.album.get("tracks")
+                tracks = self.album.tracks
                 if tracks:
                     d = 0
-                    for t in self.album.get("tracks"):
-                        d += int(t["duration"])
+                    for t in tracks:
+                        d += int(t.duration)
                     r += f" | album duration {timedelta(seconds=d)}"
         return r
 
