@@ -102,7 +102,7 @@ class ItemBase:
     def to_dict(self):
         d = dict()
         for k, v in self.__dict__.items():
-            if k.startswith('_'):
+            if k.startswith("_"):
                 continue
             d[k] = v
         return d
@@ -152,11 +152,16 @@ class Band(ItemBase, ItemWithChildren):
         super().__init__(url)
         ItemWithChildren.__init__(self)
 
-        self.name = ''
+        self.name = ""
+
+        self.add_album = self.add_children
 
     def to_dict(self):
         d = super().to_dict()
-        del d['children']
+        if d.get("albums"):
+            del d["albums"]
+        del d["children"]
+        del d["add_album"]
 
         return d
 
@@ -171,19 +176,24 @@ class Album(ItemBase, ItemWithChildren, ItemWithParent):
         ItemWithChildren.__init__(self)
         ItemWithParent.__init__(self)
 
-        self.name = ''
+        self.name = ""
 
         self.band = self.parent
+
+        self.add_track = self.add_children
 
     @property
     def tracks(self):
         return self.children.values()
 
-
     def to_dict(self):
         d = super().to_dict()
-        del d['children']
 
+        del d["band"]
+        if d.get("tracks"):
+            del d["tracks"]
+        del d["children"]
+        del d["add_track"]
         return d
 
 
@@ -198,6 +208,11 @@ class Track(ItemBase, ItemWithParent):
         self.title = ""
         self.mp3_url = None
         self.album = self.parent
+
+    def to_dict(self):
+        d = super().to_dict()
+        del d["album"]
+        return d
 
 
 class BandCamp:
@@ -226,17 +241,33 @@ class BandCamp:
                 _log("bandcamp create_item", e)
             else:
                 self.items[k] = item
-        # add parents to childrens?
-        # add childrens to parents?
+        for band in self.get_bands():
+            for a_url in band.albums_urls:
+                a = Album(a_url)
+                ac = self.storage.as_dict.get(a_url)
+                if ac is None:
+                    continue
+                a.update(ac)
+                band.add_album(a)
+                a.band = band
+        for album in self.get_albums():
+            for t_url in album.tracks_urls:
+                t = Track(t_url)
+                tc = self.storage.as_dict.get(t_url)
+                if tc is None:
+                    continue
+                t.update(tc)
+                album.add_track(t)
+                t.album = album
 
     def create_item(self, url, content):
         match content["of_type"]:
             case Band.of_type:
                 item = Band(url)
-                item.add_childrens(content['albums_urls'])
+                item.add_childrens(content["albums_urls"])
             case Album.of_type:
                 item = Album(url)
-                item.add_childrens(content['tracks_urls'])
+                item.add_childrens(content["tracks_urls"])
             case Track.of_type:
                 item = Track(url)
             case _:
@@ -244,13 +275,19 @@ class BandCamp:
         item.update(content)
         return item
 
+    def get_bands(self):
+        return [i for i in self.items.values() if i.of_type == Band.of_type]
+
+    def get_albums(self):
+        return [i for i in self.items.values() if i.of_type == Album.of_type]
+
     def get_band(self, url):
         return self.get_item(url, band_type)
 
     def get_album(self, url):
         return self.get_item(url, album_type)
 
-    def get_track(self, url, album):
+    def get_track(self, url, album=None):
         t = self.get_item(url, track_type)
         t.album = album
         path, cached = self.get_mp3_path(t)
@@ -262,11 +299,9 @@ class BandCamp:
         path = self.build_track_path_name(track)
         cached = True
         if not path.exists():
-            content = self.get_content(
-                bandcamplib.get_mp3, track.mp3_url
-            )
+            content = self.get_content(bandcamplib.get_mp3, track.mp3_url)
             if content is None:
-                raise StopCurrentTaskExeption('bandcamp get_mp3_path: cant get mp3')
+                raise StopCurrentTaskExeption("bandcamp get_mp3_path: cant get mp3")
             with open(path, "bw") as song_file:
                 song_file.write(content)
                 cached = False
@@ -287,9 +322,7 @@ class BandCamp:
         if item:
             return item
 
-        content = self.get_content(
-            self.item_types[of_type]["method"], url
-        )
+        content = self.get_content(self.item_types[of_type]["method"], url)
 
         item = self.create_item(url, content)
         self.items[item.url] = item
@@ -407,11 +440,9 @@ class Player:
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
-        track = self.bandcamp.get_track(
-            self.album.tracks_urls[track_index], self.album
-        )
+        track = self.bandcamp.get_track(self.album.tracks_urls[track_index], self.album)
         if track is None:
-            raise StopCurrentTaskExeption('cant load track')
+            raise StopCurrentTaskExeption("cant load track")
         track.album = self.album
         self.track = track
         self.track_index = track_index
@@ -457,13 +488,14 @@ class Player:
         album_url = self.band.albums_urls[self.album_index]
         album = self.bandcamp.get_album(album_url)
         if album is None:
-            raise StopCurrentTaskExeption('bandcamp get_mp3_path: cant get mp3')
+            raise StopCurrentTaskExeption("bandcamp get_mp3_path: cant get mp3")
         self.album = album
         self.album.band = self.band
         self.track_index = -1
 
     def next_album(self):
         self.album = None
+        self.get_next_album()
         self.next()
 
     def stop(self):
