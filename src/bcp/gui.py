@@ -282,10 +282,6 @@ class MyView(arcade.View):
         if not self.url_input_text.text:
             return
         self.player.stop()
-        url = self.validate_url(self.url_input_text.text)
-        if url is None:
-            return
-        self.url_input_text.text = url
         self.player.setup(self.url_input_text.text)
 
     def on_click_play(self, *_):
@@ -449,9 +445,6 @@ class MyView(arcade.View):
         self.text_time.text = time_string
 
         self.ui.draw()
-
-    def validate_url(self, url):
-        return self.player.validate_url(url.strip())
 
 
 def main(url="", fullscreen=False, skip_cached=False):

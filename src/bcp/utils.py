@@ -1,11 +1,12 @@
-from contextlib import contextmanager
 import json
 import os
 import random
 import ssl
 import tempfile
+import threading
 import time
 import urllib.request
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from tkinter import Tk
@@ -14,6 +15,9 @@ from fake_useragent import UserAgent
 from platformdirs import user_data_dir
 
 from .log import get_loger
+
+# Suppress AlsoFT messages because they bother me
+os.environ["ALSOFT_LOGLEVEL"] = "0"
 
 DEBUG = os.environ.get("DEBUG", False)
 _log = get_loger(__name__)
@@ -108,7 +112,7 @@ class CacheableResponse:
         pass
 
 
-class Session:
+class HTTPSession:
     """I'm not using `requests` library because i get 403. i tried
     setting 'User-Agent' and other headers but it doesn't work.
 
@@ -189,3 +193,86 @@ class HTTPChache:
             yield
         finally:
             self.disabled = False
+
+
+class BackgroundTaskRunner(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.running = True
+        self.working = False
+        self.tasks = list()
+        self.error = False
+
+    def run(self):
+        while self.running:
+            if not self.working:
+                self.do_task()
+            time.sleep(0.01)
+
+    def task(self, func):
+        def wrapper(*args, **kwargs):
+            self.error = False
+            self.tasks.insert(0, (func, args))
+
+        return wrapper
+
+    def do_task(self):
+        if not self.tasks:
+            return
+        task_to_run, task_to_run_args = self.tasks.pop()
+        self.working = True
+        try:
+            task_to_run(*task_to_run_args)
+        except StopCurrentTaskExeption as e:
+            _log(f"task stopped {e}")
+        # except Exception as e:
+        #     _log("EXCEPTION CATCHED BY RUNNER", e)
+        #     self.error = True
+        #     self.tasks.clear()
+        self.working = False
+
+
+class Storage:
+    """Does:
+
+    - Read and write player related information to a file. The file
+    will contain information about bands, albums and tracks.
+
+    - Serialize to json and deserialize to a dict the information.
+
+    """
+
+    def __init__(self, serializer):
+        self.path = STORAGE_PATH
+        self.serializer = serializer
+        self.content_as_dict = dict()
+        if not self.path.exists():
+            self.path.touch()
+            self.write()
+        self.content_as_dict = dict()
+        try:
+            self.content_as_dict = self.read()
+        except json.decoder.JSONDecodeError as e:
+            _log(f"storage corrupted {e}")
+            self.write()
+
+    def read(self):
+        with open(self.path, "r") as f:
+            return json.load(f)
+
+    def write(self):
+        with open(self.path, "w") as f:
+            json.dump(self.content_as_dict, f, default=self.serializer)
+
+    def update(self, items):
+        self.content_as_dict = items
+        self.write()
+
+    @property
+    def as_dict(self):
+        self.content_as_dict = self.read()
+        return self.content_as_dict
+
+
+class StopCurrentTaskExeption(Exception):
+    pass
