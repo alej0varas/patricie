@@ -34,11 +34,6 @@ if not USER_DATA_DIR.exists():
     USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 _log("user data path:", USER_DATA_DIR)
 
-TRACKS_DIR = USER_DATA_DIR / "tracks"
-if not TRACKS_DIR.exists():
-    TRACKS_DIR.mkdir(parents=True, exist_ok=True)
-_log("tracks path:", TRACKS_DIR)
-
 CACHE_PATH = USER_DATA_DIR / "http_cache.json"
 _log("cache path:", CACHE_PATH)
 
@@ -158,6 +153,7 @@ class HTTPChache:
     def set(self, key, response):
         _log(f"http cache set {key}")
         if self.disabled:
+            _log(" disabled")
             return response
         cacheable = CacheableResponse().from_response(key, response)
         self.items[key] = cacheable.serialize()

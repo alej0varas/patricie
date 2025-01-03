@@ -295,7 +295,6 @@ class MyView(arcade.View):
 
     def on_click_next_album(self, *_):
         self.player.next_album()
-        self.on_click_play()
 
     def play_update_gui(self):
         # update buttons `disabled` attribute

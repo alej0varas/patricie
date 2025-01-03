@@ -1,3 +1,6 @@
+import types
+
+
 class ItemBase:
     def __init__(self, url):
         self.url = url
@@ -10,6 +13,9 @@ class ItemBase:
         d = dict()
         for k, v in self.__dict__.items():
             if k.startswith("_"):
+                continue
+
+            if isinstance(v, types.MethodType):
                 continue
             d[k] = v
         return d

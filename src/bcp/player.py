@@ -1,5 +1,4 @@
 import time
-from datetime import timedelta
 
 from arcade import load_sound
 
@@ -84,7 +83,9 @@ class Player:
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
-        track = self.bandcamp.get_track(self.album.tracks_urls[track_index])
+        track = self.bandcamp.get_track(
+            self.bandcamp.to_full_url(self.band, self.album.get_track_url(track_index))
+        )
         if track is None:
             raise StopCurrentTaskExeption("cant load track")
         track.album = self.album
@@ -131,8 +132,9 @@ class Player:
             self.status_text = "End of playlist"
             raise EndOfPlaylistException(self.status_text)
         self.album_index = album_index
-        album_url = self.band.albums_urls[self.album_index]
-        album = self.bandcamp.get_album(album_url)
+        album = self.bandcamp.get_album(
+            self.bandcamp.to_full_url(self.band, self.band.get_album_url(album_index))
+        )
         if album is None:
             raise StopCurrentTaskExeption("bandcamp get_mp3_path: cant get mp3")
         self.album = album
@@ -275,12 +277,7 @@ class Player:
                 r += f" | tracks: {len(self.album.tracks_urls)}"
             r += f" - current: {self.track_index + 1}"
             if self.album:
-                tracks = self.album.tracks
-                if tracks:
-                    d = 0
-                    for t in tracks:
-                        d += t.duration
-                    r += f" | album duration {timedelta(seconds=d)}"
+                r += f" | album duration {self.album.duration}"
         return r
 
     @property
