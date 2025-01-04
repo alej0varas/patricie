@@ -1,10 +1,12 @@
 import types
+from datetime import datetime, timedelta
+
+REQUEST_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+# Value determined through trial and error
+REQUEST_EXPIRE_HOURS = 1
 
 
 class ItemBase:
-    def __init__(self, url):
-        self.url = url
-
     def update(self, content):
         for k, v in content.items():
             setattr(self, k, v)
@@ -19,6 +21,19 @@ class ItemBase:
                 continue
             d[k] = v
         return d
+
+    def update_from_soup(self, soup):
+        self.request_datetime = datetime.now().strftime(REQUEST_DATETIME_FORMAT)
+
+    @property
+    def download_url(self):
+        return self.url
+
+    @property
+    def expired(self):
+        return datetime.now() - timedelta(
+            hours=REQUEST_EXPIRE_HOURS
+        ) > datetime.strptime(self.request_datetime, REQUEST_DATETIME_FORMAT)
 
 
 class ItemWithChildren:

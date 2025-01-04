@@ -2,7 +2,12 @@ import time
 
 from arcade import load_sound
 
-from .bandcamp import BandCamp, EndOfPlaylistException
+from .bandcamp import (
+    BandCamp,
+    EndOfPlaylistException,
+    LinkExpiredException,
+    LoadItemException,
+)
 from .log import get_loger
 from .utils import BackgroundTaskRunner, StopCurrentTaskExeption
 
@@ -39,7 +44,7 @@ class Player:
         self.url = url
         try:
             self.band = self.bandcamp.get_band(url)
-        except ValueError as e:
+        except (ValueError, LoadItemException) as e:
             self.status_text = e
             raise StopCurrentTaskExeption(self.status_text)
         # *temporary solution* i prefer to call this two methods
@@ -90,7 +95,12 @@ class Player:
             raise StopCurrentTaskExeption("cant load track")
         track.album = self.album
         track.path = str(self.bandcamp.get_mp3_path(track))
-        track.cached = self.bandcamp.download_mp3(track)
+        try:
+            track.cached = self.bandcamp.download_mp3(track)
+        except LinkExpiredException as e:
+            self.status_text = e
+            self.next()
+            return
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"

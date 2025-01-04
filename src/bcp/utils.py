@@ -153,7 +153,7 @@ class HTTPChache:
     def set(self, key, response):
         _log(f"http cache set {key}")
         if self.disabled:
-            _log(" disabled")
+            _log("    disabled")
             return response
         cacheable = CacheableResponse().from_response(key, response)
         self.items[key] = cacheable.serialize()
@@ -171,6 +171,13 @@ class HTTPChache:
             r = CacheableResponse().from_cache(value)
             _log(f"    hit {r.geturl()}")
         return r
+
+    def invalidate(self, url):
+        _log(f"http cache invalidate {url}")
+        self._read()
+        if self.items.get(url):
+            del self.items[url]
+            self._write()
 
     def _write(self):
         _log("    write")
