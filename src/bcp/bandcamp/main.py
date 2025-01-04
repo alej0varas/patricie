@@ -203,7 +203,7 @@ class Band(ItemBase, ItemWithChildren):
     @classmethod
     def validate_url(cls, url):
         if url.isalpha():
-            url = f"https://{url}.{BandCamp.BASE_URL}"
+            url = f"https://{url}.{BandCamp.DOMAIN_NAME}"
             return url
 
         parsed_url = urlparse(url)
