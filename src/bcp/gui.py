@@ -21,6 +21,8 @@ class MyView(arcade.View):
         super().__init__()
         self.angle = 0
 
+        self.user_is_typing = True
+
         self.screen_width, self.screen_height = screen_width, screen_height
         # calculate elements' dimentions based on screen size
         width_url_label = screen_width * 0.10
@@ -283,6 +285,7 @@ class MyView(arcade.View):
             return
         self.player.stop()
         self.player.setup(self.url_input_text.text)
+        self.user_is_typing = False
 
     def on_click_play(self, *_):
         if not self.url_input_text.text:
@@ -350,6 +353,7 @@ class MyView(arcade.View):
 
     def on_key_release(self, key, modifiers):
         if self.url_input_text._active:
+            self.user_is_typing = True
             new_url = ""
             action = None
             match key:
@@ -411,6 +415,9 @@ class MyView(arcade.View):
 
     def on_draw(self):
         self.clear()
+
+        if not self.user_is_typing and self.player.is_setup:
+            self.url_input_text.text = self.player.band.url
 
         self.useless_details.text = " |".join(
             (
