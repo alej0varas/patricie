@@ -33,6 +33,8 @@ http_session = HTTPSession()
 
 class Track(ItemBase, ItemWithParent):
     of_type = "song"
+    # Value determined through trial and error
+    REQUEST_EXPIRE_HOURS = 1
 
     def __init__(self, url):
         super().__init__()

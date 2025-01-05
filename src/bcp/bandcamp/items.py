@@ -2,11 +2,11 @@ import types
 from datetime import datetime, timedelta
 
 REQUEST_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-# Value determined through trial and error
-REQUEST_EXPIRE_HOURS = 1
 
 
 class ItemBase:
+    REQUEST_EXPIRE_HOURS = 24
+
     def update(self, content):
         for k, v in content.items():
             setattr(self, k, v)
@@ -32,7 +32,7 @@ class ItemBase:
     @property
     def expired(self):
         return datetime.now() - timedelta(
-            hours=REQUEST_EXPIRE_HOURS
+            hours=self.REQUEST_EXPIRE_HOURS
         ) > datetime.strptime(self.request_datetime, REQUEST_DATETIME_FORMAT)
 
 
