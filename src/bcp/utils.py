@@ -258,6 +258,8 @@ class Storage:
         except json.decoder.JSONDecodeError as e:
             _log(f"storage corrupted {e}")
             self.write()
+        else:
+            _log(f"storage items loaded: {len(self.content_as_dict.keys())}")
 
     def read(self):
         with open(self.path, "r") as f:

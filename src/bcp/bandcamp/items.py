@@ -5,7 +5,11 @@ REQUEST_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 class ItemBase:
-    REQUEST_EXPIRE_HOURS = 24
+    # Only `Track` requires a low value to refresh the MP3 URL
+    REQUEST_EXPIRE_HOURS = 24 * 365
+
+    def __init__(self, url):
+        self.url = url
 
     def update(self, content):
         for k, v in content.items():

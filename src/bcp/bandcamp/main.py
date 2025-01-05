@@ -1,5 +1,5 @@
-from datetime import timedelta
 import json
+from datetime import timedelta
 from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -7,15 +7,9 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from slugify import slugify
 
-from .items import ItemBase, ItemWithChildren, ItemWithParent
-
 from ..log import get_loger
-from ..utils import (
-    HTTPSession,
-    StopCurrentTaskExeption,
-    Storage,
-    USER_DATA_DIR,
-)
+from ..utils import USER_DATA_DIR, HTTPSession, Storage
+from .items import ItemBase, ItemWithChildren, ItemWithParent
 
 _log = get_loger(__name__)
 
@@ -37,10 +31,9 @@ class Track(ItemBase, ItemWithParent):
     REQUEST_EXPIRE_HOURS = 1
 
     def __init__(self, url):
-        super().__init__()
+        super().__init__(url)
         ItemWithParent.__init__(self)
 
-        self.url = url
         self.album = self.parent
         self.cached = False
 
@@ -80,11 +73,10 @@ class Album(ItemBase, ItemWithChildren, ItemWithParent):
     children_class = Track
 
     def __init__(self, url):
-        super().__init__()
+        super().__init__(url)
         ItemWithChildren.__init__(self)
         ItemWithParent.__init__(self)
 
-        self.url = url
         self.band = self.parent
         self.add_track = self.add_children
         self.add_tracks = self.add_childrens
@@ -153,10 +145,9 @@ class Band(ItemBase, ItemWithChildren):
     children_class = Album
 
     def __init__(self, url):
-        super().__init__()
+        super().__init__(url)
         ItemWithChildren.__init__(self)
 
-        self.url = self.validate_url(url)
         self.add_album = self.add_children
         self.add_albums = self.add_childrens
 
@@ -203,36 +194,11 @@ class Band(ItemBase, ItemWithChildren):
     def download_url(self):
         return urlparse(super().download_url)._replace(path="music").geturl()
 
-    @classmethod
-    def validate_url(cls, url):
-        if url.isalpha():
-            url = f"https://{url}.{BandCamp.DOMAIN_NAME}"
-            return url
-
-        parsed_url = urlparse(url)
-        domain = parsed_url.netloc
-        if domain.count(".") != 2:
-            raise ValueError(f"Invalid site {domain}")
-        sub_domain, bandcamp, dot_com = domain.split(".")
-        if (not sub_domain) or f"{bandcamp}.{dot_com}" != BandCamp.DOMAIN_NAME:
-            raise ValueError(f"Invalid site {domain}")
-        newurl = parsed_url._replace(scheme="https", path="")
-
-        return newurl.geturl()
-
 
 class BandCamp:
     DOMAIN_NAME = "bandcamp.com"
     BASE_URL = f"https://{DOMAIN_NAME}"
     DOMAIN_CDN = "bcbits.com"
-
-    @classmethod
-    def items_serializer(_, obj):
-        if isinstance(obj, (Band, Album, Track)):
-            return obj.to_dict()
-        raise TypeError(
-            f"Object of type {obj.__class__.__name__} is not JSON serializable"
-        )
 
     def __init__(self):
         super().__init__()
@@ -318,10 +284,7 @@ class BandCamp:
         absolute_path = TRACKS_DIR / band / album
         if not absolute_path.exists():
             absolute_path.mkdir(parents=True, exist_ok=True)
-        from pathlib import Path
-
-        path = Path(TRACKS_DIR.name) / band / album / f"{slugify(track.title)}.mp3"
-        return path
+        return TRACKS_DIR / band / album / f"{slugify(track.title)}.mp3"
 
     def update_item(self, item):
         """item needs to be updated by downloading its content again"""
@@ -348,26 +311,25 @@ class BandCamp:
                 with http_session.get(url) as response:
                     new_url = response.geturl()
                     if url != new_url:
-                        # we don't know in which cases bandcamp redirecs so we
-                        # don't know what to do in case it happens
-                        _log(f"The requested url {url} redirected to {new_url}")
+                        # We don't know in which cases Bandcamp redirects, we don't retry and simply return.
+                        _log(f"url {url} redirects to {new_url}")
                         break
                     content = response.read()
                     break
             except HTTPError as e:
-                _log(f"    download_content {e}")
                 code = e.file.code
-                if code == 410:
-                    _log("    link expired")
-                    raise LinkExpiredException
+                _log(f"    download_content {code} {url[:50]}")
                 if 400 <= code < 500:
+                    # 403: Happened, but I'm not sure of the exact reason. It may be related to the user agent used.
+                    # 404: We don't expect this to happen because URLs are validated or come from Bandcamp.
+                    # 410: When an expired MP3 link is used. It should not happen again because links are refreshed as necessary.
                     break
-                _log("        retrying")
+                _log("    retrying")
             except (IncompleteRead, URLError, TimeoutError) as e:
                 _log(f"    retrying for: {e}")
                 attempt += 1
         else:
-            _log("    Problem reaching server")
+            _log("    max attempt reached")
         return content
 
     @classmethod
@@ -379,7 +341,7 @@ class BandCamp:
             with http_session.cache.disable():
                 content = cls.download_content(track.mp3_url)
             if content is None:
-                raise StopCurrentTaskExeption("download_mp3: cant get mp3")
+                return
             with open(path, "bw") as song_file:
                 song_file.write(content)
         return cached
@@ -393,6 +355,31 @@ class BandCamp:
         parsed_url = urlparse(band.url)
         newurl = parsed_url._replace(path=path)
         return newurl.geturl()
+
+    @classmethod
+    def validate_band_url(cls, url):
+        if url.isalpha():
+            url = f"https://{url}.{BandCamp.DOMAIN_NAME}"
+            return url
+
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        if domain.count(".") != 2:
+            raise ValueError(f"Invalid site {domain}")
+        sub_domain, bandcamp, dot_com = domain.split(".")
+        if (not sub_domain) or f"{bandcamp}.{dot_com}" != BandCamp.DOMAIN_NAME:
+            raise ValueError(f"Invalid site {domain}")
+        newurl = parsed_url._replace(scheme="https", path="")
+
+        return newurl.geturl()
+
+    @classmethod
+    def items_serializer(_, obj):
+        if isinstance(obj, (Band, Album, Track)):
+            return obj.to_dict()
+        raise TypeError(
+            f"Object of type {obj.__class__.__name__} is not JSON serializable"
+        )
 
 
 class EndOfPlaylistException(Exception):
