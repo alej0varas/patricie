@@ -6,7 +6,6 @@ from .bandcamp import (
     BandCamp,
     EndOfPlaylistException,
     LinkExpiredException,
-    LoadItemException,
 )
 from .log import get_loger
 from .utils import BackgroundTaskRunner, StopCurrentTaskExeption
@@ -44,9 +43,11 @@ class Player:
         self.url = url
         try:
             self.band = self.bandcamp.get_band(url)
-        except (ValueError, LoadItemException) as e:
+        except ValueError as e:
             self.status_text = e
             raise StopCurrentTaskExeption(self.status_text)
+        if self.band is None:
+            raise StopCurrentTaskExeption("can't load band")
         # *temporary solution* i prefer to call this two methods
         # instead of `play`. the idea is to separate loading a band
         # from starting to play. in the future we'll show band
@@ -88,11 +89,18 @@ class Player:
             self.track = None
             self.play()
             raise StopCurrentTaskExeption("No more tracks in album")
+        self.track_index = track_index
         track = self.bandcamp.get_track(
             self.bandcamp.to_full_url(self.band, self.album.get_track_url(track_index))
         )
         if track is None:
+            self.next()
             raise StopCurrentTaskExeption("cant load track")
+
+        if track.mp3_url is None:
+            self.next()
+            raise StopCurrentTaskExeption("track without mp3 url")
+
         track.album = self.album
         track.path = str(self.bandcamp.get_mp3_path(track))
         try:
@@ -146,7 +154,7 @@ class Player:
             self.bandcamp.to_full_url(self.band, self.band.get_album_url(album_index))
         )
         if album is None:
-            raise StopCurrentTaskExeption("bandcamp get_mp3_path: cant get mp3")
+            raise StopCurrentTaskExeption("get next album: cant get album")
         self.album = album
         self.album.band = self.band
         self.track_index = -1

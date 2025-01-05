@@ -40,6 +40,7 @@ class Track(ItemBase, ItemWithParent):
 
         self.url = url
         self.album = self.parent
+        self.cached = False
 
     def update_from_soup(self, soup):
         super().update_from_soup(soup)
@@ -55,9 +56,9 @@ class Track(ItemBase, ItemWithParent):
         # The album has a link to the track, but there's no MP3
         # available.  In this case, we skip the track. I haven't found
         # a way to skip listing this track when loading the album.
-        if data["trackinfo"][0]["file"] is None:
-            return
-        self.mp3_url = data["trackinfo"][0]["file"]["mp3-128"]
+        self.mp3_url = None
+        if data["trackinfo"][0]["file"] is not None:
+            self.mp3_url = data["trackinfo"][0]["file"]["mp3-128"]
         self.title = data["trackinfo"][0]["title"]
         self.duration = data["trackinfo"][0]["duration"]
         self.lyrics = data["trackinfo"][0]["lyrics"]
@@ -287,13 +288,23 @@ class BandCamp:
         return [i for i in self.items.values() if i.of_type == Album.of_type]
 
     def get_band(self, url):
-        return self.get_item(url, Band)
+        band = self.items.get(url)
+        if band is not None and not band.expired:
+            return band
+        return self.update_item(Band(url))
 
     def get_album(self, url):
-        return self.get_item(url, Album)
+        album = self.items.get(url)
+        if album is not None and not album.expired:
+            return album
+        return self.update_item(Album(url))
 
     def get_track(self, url):
-        return self.get_item(url, Track)
+        track = self.items.get(url)
+        if track is not None and (not track.expired or track.cached):
+            return track
+        item = self.update_item(Track(url))
+        return item
 
     def get_mp3_path(self, track):
         path = self.build_track_path_name(track)
@@ -310,15 +321,12 @@ class BandCamp:
         path = Path(TRACKS_DIR.name) / band / album / f"{slugify(track.title)}.mp3"
         return path
 
-    def get_item(self, url, item_class):
-        item = self.items.get(url)
-        if item is not None and not item.expired:
-            return item
-        http_session.cache.invalidate(url)
-        item = item_class(url)
+    def update_item(self, item):
+        """item needs to be updated by downloading its content again"""
+        http_session.cache.invalidate(item.url)
         success = item.update_from_soup(self.get_soup(item.download_url))
         if not success:
-            raise LoadItemException(f"Cant load item {item_class.__name__} {url}")
+            return
         self.items[item.url] = item
         self.storage.update(self.items)
         return item
