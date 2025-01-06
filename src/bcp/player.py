@@ -16,6 +16,7 @@ class Player:
     task_runner = BackgroundTaskRunner()
 
     def __init__(self, handler_music_over, skip_cached=False):
+        self.url = None
         self.bandcamp = BandCamp()
         self.task_runner.start()
         self.status_text = "Ready"
@@ -66,7 +67,7 @@ class Player:
                 self.track = None
                 self.play()
                 return
-            self.get_media_player(self.bandcamp.get_absolute_path(self.track.path))
+            self.get_media_player(self.track.absolute_path)
         self.media_player.play()
         self.fade_in(0.5)
         self.status_text = "Playing"
@@ -92,13 +93,12 @@ class Player:
             raise StopCurrentTaskExeption("track without mp3 url")
 
         track.album = self.album
-        track.path = str(self.bandcamp.get_mp3_path(track))
-        cached = self.bandcamp.download_mp3(track)
-        if cached is None:
+        path, cached = self.bandcamp.download_mp3(track)
+        if path is None:
             self.status_text = "cant download mp3"
             self.next()
             raise StopCurrentTaskExeption(self.status_text)
-        track.cached = cached
+        track.path, track.cached = path, cached
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"
@@ -314,3 +314,7 @@ class Player:
     @property
     def volume_max(self):
         return self.get_volume() == 1.0
+
+    @property
+    def current_url(self):
+        return self.url or ''

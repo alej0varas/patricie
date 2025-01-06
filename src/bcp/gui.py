@@ -416,8 +416,8 @@ class MyView(arcade.View):
     def on_draw(self):
         self.clear()
 
-        if not self.user_is_typing and self.player.is_setup:
-            self.url_input_text.text = self.player.band.url
+        if not self.user_is_typing:
+            self.url_input_text.text = self.player.current_url
 
         self.useless_details.text = " |".join(
             (

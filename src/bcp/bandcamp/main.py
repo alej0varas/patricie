@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 from datetime import timedelta
 from http.client import IncompleteRead
@@ -66,6 +67,16 @@ class Track(ItemBase, ItemWithParent):
         d = super().to_dict()
         del d["album"]
         return d
+
+    @classmethod
+    def get_absolute_path(cls, relative_path):
+        absolute_path = TRACKS_DIR / relative_path
+        absolute_path.parent.mkdir(parents=True, exist_ok=True)
+        return absolute_path
+
+    @property
+    def absolute_path(self):
+        return self.get_absolute_path(self.path)
 
 
 class Album(ItemBase, ItemWithChildren, ItemWithParent):
@@ -274,18 +285,6 @@ class BandCamp:
         item = self.update_item(Track(url))
         return item
 
-    def get_mp3_path(self, track):
-        path = self.build_track_path_name(track)
-        return path
-
-    def build_track_path_name(self, track):
-        band = slugify(track.album.band.name)
-        album = slugify(track.album.name)
-        absolute_path = TRACKS_DIR / band / album
-        if not absolute_path.exists():
-            absolute_path.mkdir(parents=True, exist_ok=True)
-        return TRACKS_DIR / band / album / f"{slugify(track.title)}.mp3"
-
     def update_item(self, item):
         """item needs to be updated by downloading its content again"""
         http_session.cache.invalidate(item.url)
@@ -335,20 +334,20 @@ class BandCamp:
     @classmethod
     def download_mp3(cls, track):
         cached = True
-        path = cls.get_absolute_path(track.path)
-        if not path.exists():
+        relative_path = Path(
+            slugify(track.album.band.name),
+            slugify(track.album.name),
+            f"{slugify(track.title)}.mp3",
+        )
+        absolute_path = track.get_absolute_path(relative_path)
+        if not absolute_path.exists():
             cached = False
             with http_session.cache.disable():
                 content = cls.download_content(track.mp3_url)
             if content is None:
                 return
-            with open(path, "bw") as song_file:
-                song_file.write(content)
-        return cached
-
-    @classmethod
-    def get_absolute_path(self, part):
-        return USER_DATA_DIR / part
+            absolute_path.write_bytes(content)
+        return str(relative_path), cached
 
     @classmethod
     def to_full_url(cls, band, path):

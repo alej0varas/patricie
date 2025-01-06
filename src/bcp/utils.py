@@ -181,12 +181,10 @@ class HTTPChache:
 
     def _write(self):
         _log("    write")
-        with open(CACHE_PATH, "w") as f:
-            f.write(json.dumps(self.items))
+        CACHE_PATH.write_text(json.dumps(self.items))
 
     def _read(self):
-        with open(CACHE_PATH, "r") as f:
-            self.items = json.loads(f.read())
+        self.items = json.loads(CACHE_PATH.read_text())
         _log(f"    read {len(self.items)}")
 
     @contextmanager
@@ -262,12 +260,10 @@ class Storage:
             _log(f"storage items loaded: {len(self.content_as_dict.keys())}")
 
     def read(self):
-        with open(self.path, "r") as f:
-            return json.load(f)
+        return json.loads(self.path.read_text())
 
     def write(self):
-        with open(self.path, "w") as f:
-            json.dump(self.content_as_dict, f, default=self.serializer)
+        self.path.write_text(json.dumps(self.content_as_dict, default=self.serializer))
 
     def update(self, items):
         self.content_as_dict = items
