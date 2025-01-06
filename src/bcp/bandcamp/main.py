@@ -288,17 +288,16 @@ class BandCamp:
     def update_item(self, item):
         """item needs to be updated by downloading its content again"""
         http_session.cache.invalidate(item.url)
-        success = item.update_from_soup(self.get_soup(item.download_url))
+        html = self.download_content(item.download_url)
+        if not html:
+            return
+        soup = BeautifulSoup(html, "html.parser")
+        success = item.update_from_soup(soup)
         if not success:
             return
         self.items[item.url] = item
         self.storage.update(self.items)
         return item
-
-    @classmethod
-    def get_soup(cls, url):
-        html = cls.download_content(url)
-        return BeautifulSoup(html, "html.parser")
 
     @classmethod
     def download_content(cls, url):
@@ -320,7 +319,7 @@ class BandCamp:
                 _log(f"    download_content {code} {url[:50]}")
                 if 400 <= code < 500:
                     # 403: Happened, but I'm not sure of the exact reason. It may be related to the user agent used.
-                    # 404: We don't expect this to happen because URLs are validated or come from Bandcamp.
+                    # 404: Happens when a band url doesn't exist, even if it's valid.
                     # 410: When an expired MP3 link is used. It should not happen again because links are refreshed as necessary.
                     break
                 _log("    retrying")

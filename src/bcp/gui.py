@@ -367,7 +367,6 @@ class MyView(arcade.View):
                     self.url_input_text.deactivate()
                 case _:
                     if not modifiers & arcade.key.MOD_CTRL:
-                        _log("URL from input: ", self.url_input_text.text)
                         new_url = self.url_input_text.text
             if not new_url:
                 new_url = self.url_input_text.text
