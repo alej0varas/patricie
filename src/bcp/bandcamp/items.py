@@ -10,6 +10,7 @@ class ItemBase:
 
     def __init__(self, url):
         self.url = url
+        self.name = ''
 
     def update(self, content):
         for k, v in content.items():

@@ -288,8 +288,6 @@ class MyView(arcade.View):
         self.user_is_typing = False
 
     def on_click_play(self, *_):
-        if not self.url_input_text.text:
-            return
         if self.player.is_setup:
             self.player.play()
 
@@ -360,7 +358,6 @@ class MyView(arcade.View):
                 case arcade.key.V:
                     if modifiers & arcade.key.MOD_CTRL:
                         new_url = get_clipboad_content()
-                        _log("URL from clipboard: ", new_url)
                 case arcade.key.ENTER:
                     action = self.load_band_button.on_click
                 case arcade.key.TAB:
@@ -384,7 +381,6 @@ class MyView(arcade.View):
             case arcade.key.N:
                 self.next_button.on_click()
             case arcade.key.S:
-                # TODO: bind to button.on_click
                 self.on_click_next_album()
             case arcade.key.DOWN:
                 self.vol_down_button.on_click()
@@ -420,9 +416,9 @@ class MyView(arcade.View):
 
         self.useless_details.text = " |".join(
             (
-                self.player.statistics(),
-                self.player.info()["status"],
-                self.player.info()["error"],
+                self.player.statistics,
+                "status " + self.player.status,
+                "error " + self.player.error,
             )
         )
 
@@ -437,14 +433,14 @@ class MyView(arcade.View):
         else:
             self.loading_animation.visible = False
 
-        self.text_track_title.text = self.player.info()["title"]
-        self.text_track_album.text = self.player.info()["album"]
-        self.text_track_band.text = self.player.info()["band"]
+        self.text_track_title.text = self.player.track_title
+        self.text_track_album.text = self.player.album_name
+        self.text_track_band.text = self.player.band_name
 
-        _time = self.player.info()["position"]
+        _time = self.player.track_position
         template = "{}"
         pos_string = template.format(str(timedelta(seconds=int(_time)))[2:])
-        _time = self.player.info()["duration"]
+        _time = self.player.track_duration
         dur_string = template.format(str(timedelta(seconds=int(_time)))[2:])
         time_string = pos_string + " / " + dur_string
         self.text_time.text = time_string

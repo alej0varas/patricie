@@ -55,7 +55,7 @@ class Track(ItemBase, ItemWithParent):
         self.mp3_url = None
         if data["trackinfo"][0]["file"] is not None:
             self.mp3_url = data["trackinfo"][0]["file"]["mp3-128"]
-        self.title = data["trackinfo"][0]["title"]
+        self.name = data["trackinfo"][0]["title"]
         self.duration = data["trackinfo"][0]["duration"]
         self.lyrics = data["trackinfo"][0]["lyrics"]
         return True
@@ -336,7 +336,7 @@ class BandCamp:
         relative_path = Path(
             slugify(track.album.band.name),
             slugify(track.album.name),
-            f"{slugify(track.title)}.mp3",
+            f"{slugify(track.name)}.mp3",
         )
         absolute_path = track.get_absolute_path(relative_path)
         if not absolute_path.exists():

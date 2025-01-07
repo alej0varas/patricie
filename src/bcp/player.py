@@ -62,7 +62,7 @@ class Player:
         self.get_next_track()
         if not self.media_player:
             if self.skip_cached and self.track.cached:
-                _log("Skipping track: ", self.track.title)
+                _log("Skipping track: ", self.track.name)
                 self.status_text = "Skipping track"
                 self.track = None
                 self.play()
@@ -236,48 +236,40 @@ class Player:
             return self.current_sound.get_volume(self.media_player)
         return 0.5
 
-    def get_position(self):
-        result = 0
+    @property
+    def track_position(self):
         if self.current_sound and self.media_player:
-            result = self.current_sound.get_stream_position(self.media_player)
-        return result
+            return self.current_sound.get_stream_position(self.media_player)
+        return 0
 
-    def get_duration(self):
-        result = 0
+    @property
+    def track_duration(self):
         if self.track:
-            result = self.track.duration
-        return result
+            return self.track.duration
+        return 0
 
-    def get_artist(self):
+    @property
+    def band_name(self):
         if self.track:
-            return "{artist}".format(**self.track)
+            return f"{self.track.album.band.name}"
         return ""
 
-    def get_album(self):
+    @property
+    def album_name(self):
         if self.track:
-            return "{album}".format(**self.track)
+            return f"{self.track.album.name}"
         return ""
 
-    def get_title(self):
+    @property
+    def track_title(self):
         if self.track:
-            return "{title}".format(**self.track)
+            return f"{self.track.name}"
         return ""
 
     def quit(self):
         self.stop()
 
-    def info(self):
-        d = {
-            "title": self.track and self.track.title or "",
-            "album": self.album and self.album.name or "",
-            "band": self.band and self.band.name or "",
-            "position": self.get_position(),
-            "duration": self.get_duration(),
-            "error": self.error,
-            "status": str(self.status_text),
-        }
-        return d
-
+    @property
     def statistics(self):
         r = ""
         if self.band:
@@ -291,6 +283,10 @@ class Player:
         return r
 
     @property
+    def status(self):
+        return str(self.status_text)
+
+    @property
     def playing(self):
         return bool(self.media_player and self.media_player.playing)
 
@@ -300,7 +296,7 @@ class Player:
 
     @property
     def error(self):
-        return str(self.task_runner.error)
+        return ['no', 'yes'][self.task_runner.error]
 
     @property
     def working(self):
@@ -316,4 +312,4 @@ class Player:
 
     @property
     def current_url(self):
-        return self.url or ''
+        return self.url or ""
