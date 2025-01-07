@@ -264,7 +264,6 @@ class Player:
         return ""
 
     def quit(self):
-        self.task_runner.running = False
         self.stop()
 
     def info(self):

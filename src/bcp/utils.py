@@ -204,7 +204,8 @@ class HTTPChache:
 
 class BackgroundTaskRunner(threading.Thread):
     def __init__(self):
-        super().__init__()
+        # setting `daemon` to `True` will stop the thread abruptly when Patricie exits; this is the intended behavior
+        super().__init__(daemon=True)
         self.running = True
         self.working = False
         self.tasks = list()
