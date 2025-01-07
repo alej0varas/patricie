@@ -2,6 +2,7 @@ import json
 import os
 import random
 import ssl
+import sys
 import tempfile
 import threading
 import time
@@ -39,6 +40,11 @@ _log("cache path:", CACHE_PATH)
 
 STORAGE_PATH = USER_DATA_DIR / "storage.json"
 _log("storage path:", STORAGE_PATH)
+
+CA_FILE = None
+# patricie is running from binary
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    CA_FILE = "certifi/cacert.pem"
 
 
 def get_clipboad_content():
@@ -115,6 +121,8 @@ class HTTPSession:
 
     def __init__(self):
         self.cache = HTTPChache(CACHE_PATH)
+        # for some band urls not using a user agent makes bandcamp redirect
+        self.user_agent = UserAgent(platforms=["desktop"]).random
 
     def get(self, url):
         _log(f"http session get: {url}")
@@ -122,10 +130,8 @@ class HTTPSession:
         if not response:
             throttle()
             request = urllib.request.Request(url)
-            # for some band urls not using a user agent makes bandcamp redirect
-            ua = UserAgent(platforms=["desktop"])
-            request.add_header("User-Agent", ua.random)
-            context = ssl.create_default_context(cafile="certifi/cacert.pem")
+            request.add_header("User-Agent", self.user_agent)
+            context = ssl.create_default_context(cafile=CA_FILE)
             # If a timeout is not set, it waits too long
             r = urllib.request.urlopen(request, context=context, timeout=30)
             response = self.cache.set(url, r)
