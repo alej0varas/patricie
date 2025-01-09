@@ -103,7 +103,7 @@ class Player:
             self.next()
             raise StopCurrentTaskExeption("track without mp3 url")
         track.album = self.album
-        if track.path is None:
+        if not track.path_exists:
             try:
                 track.path, track.cached = self.bandcamp.download_mp3(track)
             except MP3DownloadError:

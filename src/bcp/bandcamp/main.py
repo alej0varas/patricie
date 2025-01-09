@@ -69,6 +69,12 @@ class Track(ItemBase, ItemWithParent):
         del d["album"]
         return d
 
+    @property
+    def path_exists(self):
+        if self.path is None:
+            return False
+        return Path(self.get_absolute_path(self.path)).exists()
+
     @classmethod
     def get_absolute_path(cls, relative_path):
         absolute_path = TRACKS_DIR / relative_path
@@ -281,14 +287,14 @@ class BandCamp:
 
     def get_track(self, url):
         track = self.items.get(url)
-        if track is not None and (not track.expired or track.path is not None):
+        if track is not None and track.path_exists and not track.expired:
+            _log(f'track in storage {url}')
             return track
-        return self.update_item(Track(url), invalidate_cache=True)
+        http_session.cache.invalidate(url)
+        return self.update_item(Track(url))
 
-    def update_item(self, item, invalidate_cache=False):
+    def update_item(self, item):
         """item needs to be updated by downloading its content again"""
-        if invalidate_cache:
-            http_session.cache.invalidate(item.url)
         html = self.download_content(item.download_url)
         if not html:
             return
