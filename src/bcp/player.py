@@ -2,7 +2,7 @@ import time
 
 from arcade import load_sound
 
-from .bandcamp import BandCamp
+from .bandcamp import BandCamp, MP3DownloadError
 from .log import get_loger
 from .utils import BackgroundTaskRunner, StopCurrentTaskExeption
 
@@ -19,9 +19,24 @@ class Player:
         self.url = None
         self.bandcamp = BandCamp()
         self.task_runner.start()
-        self.status_text = "Ready"
+        self.status_text = ""
         self._handler_music_over = handler_music_over
         self.skip_cached = skip_cached
+        self.is_setup = None
+        self.downloading = None
+        self.current_sound = None
+        self.media_player = None
+        self.band = None
+        self.album_index = None
+        self.album = None
+        self.track_index = None
+        self.track = None
+        self.user_volume = 100
+        self.continue_playing = None
+
+    @task_runner.task
+    def setup(self, url):
+        self.status_text = "Ready"
         self.is_setup = None
         self.downloading = False
         self.current_sound = None
@@ -31,11 +46,8 @@ class Player:
         self.album = None
         self.track_index = -1
         self.track = None
-        self.user_volume = 100
         self.continue_playing = False
 
-    @task_runner.task
-    def setup(self, url):
         try:
             self.url = self.bandcamp.validate_band_url(url)
         except ValueError as e:
@@ -87,18 +99,17 @@ class Player:
         if track is None:
             self.next()
             raise StopCurrentTaskExeption("cant load track")
-
         if track.mp3_url is None:
             self.next()
             raise StopCurrentTaskExeption("track without mp3 url")
-
         track.album = self.album
-        path, cached = self.bandcamp.download_mp3(track)
-        if path is None:
-            self.status_text = "cant download mp3"
-            self.next()
-            raise StopCurrentTaskExeption(self.status_text)
-        track.path, track.cached = path, cached
+        if track.path is None:
+            try:
+                track.path, track.cached = self.bandcamp.download_mp3(track)
+            except MP3DownloadError:
+                self.status_text = "can't download mp3"
+                self.next()
+                raise StopCurrentTaskExeption(self.status_text)
         self.track = track
         self.track_index = track_index
         self.status_text = "Ready to play"

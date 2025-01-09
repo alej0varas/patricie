@@ -253,33 +253,33 @@ class Storage:
     def __init__(self, serializer):
         self.path = STORAGE_PATH
         self.serializer = serializer
-        self.content_as_dict = dict()
+        self.items = dict()
         if not self.path.exists():
             self.path.touch()
             self.write()
-        self.content_as_dict = dict()
         try:
-            self.content_as_dict = self.read()
+            self.refresh()
         except json.decoder.JSONDecodeError as e:
             _log(f"storage corrupted {e}")
             self.write()
         else:
-            _log(f"storage items loaded: {len(self.content_as_dict.keys())}")
+            _log(f"storage items loaded: {len(self.items)}")
 
     def read(self):
-        return json.loads(self.path.read_text())
+        r = json.loads(self.path.read_text())
+        _log(f'storage read: {len(r)}')
+        return r
 
     def write(self):
-        self.path.write_text(json.dumps(self.content_as_dict, default=self.serializer))
+        _log(f'storage write: {len(self.items)}')
+        self.path.write_text(json.dumps(self.items, default=self.serializer))
 
     def update(self, items):
-        self.content_as_dict = items
+        self.items = items
         self.write()
 
-    @property
-    def as_dict(self):
-        self.content_as_dict = self.read()
-        return self.content_as_dict
+    def refresh(self):
+        self.items = self.read()
 
 
 class StopCurrentTaskExeption(Exception):

@@ -3,4 +3,5 @@ from .main import (  # noqa: F401
     EndOfPlaylistException,
     LinkExpiredException,
     LoadItemException,
+    MP3DownloadError
 )

@@ -35,6 +35,7 @@ class Track(ItemBase, ItemWithParent):
         super().__init__(url)
         ItemWithParent.__init__(self)
 
+        self.path = None
         self.album = self.parent
         self.cached = False
 
@@ -215,7 +216,7 @@ class BandCamp:
         super().__init__()
         self.storage = Storage(self.items_serializer)
         self.items = dict()
-        for k, v in self.storage.as_dict.items():
+        for k, v in self.storage.items.items():
             try:
                 item = self.load_item(k, v)
             except ValueError as e:
@@ -225,7 +226,7 @@ class BandCamp:
         for band in self.get_bands():
             for a_url in band.albums_urls:
                 a = Album(self.to_full_url(band, a_url))
-                ac = self.storage.as_dict.get(a_url)
+                ac = self.storage.items.get(a_url)
                 if ac is None:
                     continue
                 a.update(ac)
@@ -234,7 +235,7 @@ class BandCamp:
         for album in self.get_albums():
             for t_url in album.tracks_urls:
                 t = Track(self.to_full_url(band, t_url))
-                tc = self.storage.as_dict.get(t_url)
+                tc = self.storage.items.get(t_url)
                 if tc is None:
                     continue
                 t.update(tc)
@@ -280,14 +281,14 @@ class BandCamp:
 
     def get_track(self, url):
         track = self.items.get(url)
-        if track is not None and (not track.expired or track.cached):
+        if track is not None and (not track.expired or track.path is not None):
             return track
-        item = self.update_item(Track(url))
-        return item
+        return self.update_item(Track(url), invalidate_cache=True)
 
-    def update_item(self, item):
+    def update_item(self, item, invalidate_cache=False):
         """item needs to be updated by downloading its content again"""
-        http_session.cache.invalidate(item.url)
+        if invalidate_cache:
+            http_session.cache.invalidate(item.url)
         html = self.download_content(item.download_url)
         if not html:
             return
@@ -344,7 +345,7 @@ class BandCamp:
             with http_session.cache.disable():
                 content = cls.download_content(track.mp3_url)
             if content is None:
-                return
+                raise MP3DownloadError()
             absolute_path.write_bytes(content)
         return str(relative_path), cached
 
@@ -397,4 +398,7 @@ class LoadItemException(Exception):
 
 
 class LinkExpiredException(Exception):
+    pass
+
+class MP3DownloadError(Exception):
     pass
