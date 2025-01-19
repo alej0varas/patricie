@@ -73,13 +73,13 @@ class Player:
         self.get_next_album()
         self.get_next_track()
         if not self.media_player:
-            if self.skip_cached and self.track.cached:
+            if self.skip_cached and self.track.mp3_cached:
                 _log("Skipping track: ", self.track.name)
                 self.status_text = "Skipping track"
                 self.track = None
                 self.play()
                 return
-            self.get_media_player(self.track.absolute_path)
+            self.get_media_player(self.track.mp3_absolute_path)
         self.media_player.play()
         self.fade_in(0.5)
         self.status_text = "Playing"
@@ -103,9 +103,9 @@ class Player:
             self.next()
             raise StopCurrentTaskExeption("track without mp3 url")
         track.album = self.album
-        if not track.path_exists:
+        if not track.mp3_exists:
             try:
-                track.path, track.cached = self.bandcamp.download_mp3(track)
+                track.mp3_path, track.mp3_cached = self.bandcamp.download_mp3(track)
             except MP3DownloadError:
                 self.status_text = "can't download mp3"
                 self.next()

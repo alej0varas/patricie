@@ -35,9 +35,9 @@ class Track(ItemBase, ItemWithParent):
         super().__init__(url)
         ItemWithParent.__init__(self)
 
-        self.path = None
+        self.mp3_path = None
+        self.mp3_cached = False
         self.album = self.parent
-        self.cached = False
 
     def update_from_soup(self, soup):
         super().update_from_soup(soup)
@@ -70,10 +70,10 @@ class Track(ItemBase, ItemWithParent):
         return d
 
     @property
-    def path_exists(self):
-        if self.path is None:
+    def mp3_exists(self):
+        if self.mp3_path is None:
             return False
-        return Path(self.get_absolute_path(self.path)).exists()
+        return Path(self.get_absolute_path(self.mp3_path)).exists()
 
     @classmethod
     def get_absolute_path(cls, relative_path):
@@ -82,8 +82,8 @@ class Track(ItemBase, ItemWithParent):
         return absolute_path
 
     @property
-    def absolute_path(self):
-        return self.get_absolute_path(self.path)
+    def mp3_absolute_path(self):
+        return self.get_absolute_path(self.mp3_path)
 
 
 class Album(ItemBase, ItemWithChildren, ItemWithParent):
@@ -287,7 +287,7 @@ class BandCamp:
 
     def get_track(self, url):
         track = self.items.get(url)
-        if track is not None and track.path_exists and not track.expired:
+        if track is not None and track.mp3_exists:
             _log(f'track in storage {url}')
             return track
         http_session.cache.invalidate(url)
